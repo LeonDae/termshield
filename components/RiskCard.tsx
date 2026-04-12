@@ -2,6 +2,7 @@ import type { Risk } from "@/types";
 
 interface RiskCardProps {
   risk: Risk;
+  index?: number;
 }
 
 const severityStyles = {
@@ -32,17 +33,18 @@ const categoryLabels: Record<string, string> = {
   termination: "Termination",
 };
 
-export function RiskCard({ risk }: RiskCardProps) {
+export function RiskCard({ risk, index = 0 }: RiskCardProps) {
   const style = severityStyles[risk.severity];
+  const delayClass = `stagger-${Math.min(index + 1, 6)}`;
 
   return (
     <div
-      className={`glass-card rounded-2xl p-5 ${style.accent} transition-all duration-300`}
+      className={`glass-card rounded-2xl p-5 ${style.accent} animate-slide-up ${delayClass} transition-all duration-300`}
     >
       <div className="flex items-start justify-between gap-3">
         <div>
           <span
-            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider ${style.badge}`}
+            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider ${style.badge} ${risk.severity === 'critical' ? 'animate-glow' : ''}`}
           >
             {risk.severity}
           </span>
@@ -57,7 +59,7 @@ export function RiskCard({ risk }: RiskCardProps) {
         )}
       </div>
 
-      <blockquote className="mt-3 border-l-2 border-outline-variant/30 pl-3 text-xs italic leading-5 text-on-surface-variant">
+      <blockquote className={`mt-3 border-l-2 border-outline-variant/30 pl-3 text-xs italic leading-5 text-on-surface-variant animate-text-reveal ${delayClass}`}>
         &ldquo;{risk.clauseText}&rdquo;
       </blockquote>
 
@@ -66,7 +68,7 @@ export function RiskCard({ risk }: RiskCardProps) {
       </p>
 
       {risk.fixMessage && (
-        <div className="mt-3 rounded-xl bg-surface-container-lowest/40 border border-outline-variant/10 p-3">
+        <div className={`mt-3 rounded-xl bg-surface-container-lowest/40 border border-outline-variant/10 p-3 animate-slide-up ${delayClass}`}>
           <p className="text-label text-primary/70">
             Suggested fix message
           </p>

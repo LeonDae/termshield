@@ -43,8 +43,8 @@ export function RiskDashboard({ scan }: RiskDashboardProps) {
       </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
-        {scan.risks.map((risk) => (
-          <RiskCard key={risk.id} risk={risk} />
+        {scan.risks.map((risk, index) => (
+          <RiskCard key={risk.id} risk={risk} index={index} />
         ))}
       </div>
     </section>

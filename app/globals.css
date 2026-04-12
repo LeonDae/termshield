@@ -272,6 +272,30 @@ body {
   51%, 100% { border-color: transparent; }
 }
 
+@keyframes textReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+    filter: blur(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes slideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════════
    6. SCROLL-TRIGGERED ANIMATION CLASSES
    ═══════════════════════════════════════════════════════════════ */
@@ -322,6 +346,20 @@ body {
 .animate-on-scroll-right.visible {
   opacity: 1;
   transform: translateX(0);
+}
+
+.animate-text-reveal {
+  opacity: 0;
+  animation: textReveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-up {
+  opacity: 0;
+  animation: slideUp 0.6s ease-out forwards;
+}
+
+.animate-glow {
+  animation: pulseGlow 3s ease-in-out infinite;
 }
 
 /* Stagger delays */

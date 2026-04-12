@@ -2,12 +2,50 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function SignupPage() {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!agreedToTerms) {
+      setError("Please agree to the Terms of Service.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    setSuccessMessage("");
+
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: name,
+        },
+      },
+    });
+
+    if (signUpError) {
+      setError(signUpError.message);
+      setLoading(false);
+    } else {
+      setSuccessMessage("Account created successfully! Redirecting...");
+      setTimeout(() => {
+        router.push("/");
+      }, 1500);
+    }
+  };
 
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden mesh-gradient-hero">
@@ -34,11 +72,24 @@ export default function SignupPage() {
             Join the frontier of Luminescent Ledger technology.
           </p>
 
-          <form className="mt-6 space-y-5" onSubmit={(e) => e.preventDefault()}>
+          {error && (
+            <div className="mt-4 rounded-xl bg-error/10 border border-error/20 p-3 text-sm text-error animate-slide-up">
+              {error}
+            </div>
+          )}
+
+          {successMessage && (
+            <div className="mt-4 rounded-xl bg-primary/10 border border-primary/20 p-3 text-sm text-primary animate-slide-up">
+              {successMessage}
+            </div>
+          )}
+
+          <form className="mt-6 space-y-5" onSubmit={handleSignup}>
             <label className="block">
               <span className="text-sm font-medium text-on-surface">Full Name</span>
               <input
                 type="text"
+                required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="John Doe"
@@ -50,6 +101,7 @@ export default function SignupPage() {
               <span className="text-sm font-medium text-on-surface">Email</span>
               <input
                 type="email"
+                required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
@@ -61,6 +113,7 @@ export default function SignupPage() {
               <span className="text-sm font-medium text-on-surface">Password</span>
               <input
                 type="password"
+                required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
@@ -86,9 +139,20 @@ export default function SignupPage() {
 
             <button
               type="submit"
-              className="btn-primary w-full rounded-full py-3 text-sm font-semibold glow-primary"
+              disabled={loading}
+              className="btn-primary w-full flex items-center justify-center gap-2 rounded-full py-3 text-sm font-semibold glow-primary disabled:opacity-50"
             >
-              Create Account
+              {loading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-on-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Creating...
+                </>
+              ) : (
+                "Create Account"
+              )}
             </button>
           </form>
 
@@ -108,3 +172,4 @@ export default function SignupPage() {
     </div>
   );
 }
+
