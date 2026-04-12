@@ -1,36 +1,80 @@
-import type { Risk, RiskSeverity } from "@/types";
+import type { Risk } from "@/types";
 
 interface RiskCardProps {
   risk: Risk;
 }
 
-const severityClasses: Record<RiskSeverity, string> = {
-  critical: "border-red-200 bg-red-50 text-red-800",
-  important: "border-amber-200 bg-amber-50 text-amber-800",
-  safe: "border-emerald-200 bg-emerald-50 text-emerald-800",
+const severityStyles = {
+  critical: {
+    accent: "accent-critical",
+    bg: "bg-error/5",
+    badge: "bg-error/15 text-error",
+    icon: "text-error",
+  },
+  important: {
+    accent: "accent-important",
+    bg: "bg-yellow-400/5",
+    badge: "bg-yellow-400/15 text-yellow-300",
+    icon: "text-yellow-300",
+  },
+  safe: {
+    accent: "accent-safe",
+    bg: "bg-primary/5",
+    badge: "bg-primary/15 text-primary",
+    icon: "text-primary",
+  },
+};
+
+const categoryLabels: Record<string, string> = {
+  ip: "Intellectual Property",
+  payment: "Payment Terms",
+  "non-compete": "Non-Compete",
+  termination: "Termination",
 };
 
 export function RiskCard({ risk }: RiskCardProps) {
-  const categoryLabel = risk.category.replace("-", " ");
+  const style = severityStyles[risk.severity];
 
   return (
-    <article
-      className={`rounded-[1.5rem] border p-5 shadow-sm ${severityClasses[risk.severity]}`}
+    <div
+      className={`glass-card rounded-2xl p-5 ${style.accent} transition-all duration-300`}
     >
-      <p className="text-xs font-medium uppercase tracking-[0.18em]">
-        {categoryLabel}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <span
+            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider ${style.badge}`}
+          >
+            {risk.severity}
+          </span>
+          <h3 className="mt-2 text-sm font-semibold text-on-surface">
+            {categoryLabels[risk.category] ?? risk.category}
+          </h3>
+        </div>
+        {risk.confidence !== undefined && (
+          <span className="text-xs text-on-surface-variant">
+            {Math.round(risk.confidence)}% conf.
+          </span>
+        )}
+      </div>
+
+      <blockquote className="mt-3 border-l-2 border-outline-variant/30 pl-3 text-xs italic leading-5 text-on-surface-variant">
+        &ldquo;{risk.clauseText}&rdquo;
+      </blockquote>
+
+      <p className="mt-3 text-sm leading-6 text-on-surface/80">
+        {risk.explanation}
       </p>
-      <div className="mt-3 flex items-center justify-between gap-3">
-        <h3 className="text-lg font-semibold capitalize">{risk.severity}</h3>
-        <span className="rounded-full bg-white/60 px-3 py-1 text-xs font-semibold">
-          {risk.confidence ?? 0}% confidence
-        </span>
-      </div>
-      <p className="mt-3 text-sm leading-6">{risk.explanation}</p>
-      <div className="mt-4 rounded-xl bg-white/70 p-3 text-sm leading-6 text-slate-700">
-        <p className="font-semibold text-slate-900">Clause excerpt</p>
-        <p className="mt-1">{risk.clauseText}</p>
-      </div>
-    </article>
+
+      {risk.fixMessage && (
+        <div className="mt-3 rounded-xl bg-surface-container-lowest/40 border border-outline-variant/10 p-3">
+          <p className="text-label text-primary/70">
+            Suggested fix message
+          </p>
+          <p className="mt-1 text-sm leading-6 text-on-surface/80">
+            {risk.fixMessage}
+          </p>
+        </div>
+      )}
+    </div>
   );
 }

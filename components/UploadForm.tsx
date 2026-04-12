@@ -132,19 +132,22 @@ export function UploadForm() {
   }
 
   return (
-    <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_80px_rgba(15,23,42,0.08)]">
+    <section className="glass-card rounded-3xl p-6 sm:p-8">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-            Step 1
-          </p>
-          <h2 className="mt-2 text-2xl font-semibold text-slate-950">
+          <p className="text-label text-primary">Step 1</p>
+          <h2 className="mt-2 text-2xl font-semibold text-on-surface">
             Upload your contract
           </h2>
         </div>
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+          <svg className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+          </svg>
+        </div>
       </div>
 
-      <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+      <p className="mt-3 max-w-2xl text-sm leading-6 text-on-surface-variant">
         Upload a PDF contract or paste the text directly. We&apos;ll scan it for
         risky clauses across 4 categories in under 60 seconds.
       </p>
@@ -156,8 +159,8 @@ export function UploadForm() {
           onClick={() => setMode("pdf")}
           className={
             mode === "pdf"
-              ? "rounded-full bg-slate-950 px-4 py-2 text-xs font-semibold text-white transition"
-              : "rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-slate-400"
+              ? "rounded-full bg-primary px-5 py-2.5 text-xs font-semibold text-on-primary transition-all shadow-glow-primary"
+              : "rounded-full border border-outline-variant/30 bg-transparent px-5 py-2.5 text-xs font-semibold text-on-surface-variant transition-all hover:border-primary/40 hover:text-primary"
           }
         >
           Upload PDF
@@ -167,15 +170,15 @@ export function UploadForm() {
           onClick={() => setMode("text")}
           className={
             mode === "text"
-              ? "rounded-full bg-slate-950 px-4 py-2 text-xs font-semibold text-white transition"
-              : "rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-slate-400"
+              ? "rounded-full bg-primary px-5 py-2.5 text-xs font-semibold text-on-primary transition-all shadow-glow-primary"
+              : "rounded-full border border-outline-variant/30 bg-transparent px-5 py-2.5 text-xs font-semibold text-on-surface-variant transition-all hover:border-primary/40 hover:text-primary"
           }
         >
           Paste Text
         </button>
       </div>
 
-      <form className="mt-4 grid gap-4" onSubmit={handleSubmit}>
+      <form className="mt-5 grid gap-5" onSubmit={handleSubmit}>
         {/* PDF upload area */}
         {mode === "pdf" && (
           <div
@@ -183,12 +186,12 @@ export function UploadForm() {
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onClick={() => fileInputRef.current?.click()}
-            className={`flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center transition ${
+            className={`flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center transition-all duration-300 ${
               isDragOver
-                ? "border-slate-950 bg-slate-50"
+                ? "border-primary bg-primary/5 shadow-glow-primary"
                 : selectedFile
-                  ? "border-emerald-400 bg-emerald-50"
-                  : "border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50"
+                  ? "border-primary/40 bg-primary/5"
+                  : "border-outline-variant/30 bg-surface-container-lowest/40 hover:border-primary/30 hover:bg-surface-container-lowest/60"
             }`}
           >
             <input
@@ -201,7 +204,7 @@ export function UploadForm() {
             {selectedFile ? (
               <>
                 <svg
-                  className="mb-2 h-8 w-8 text-emerald-600"
+                  className="mb-2 h-8 w-8 text-primary"
                   fill="none"
                   viewBox="0 0 24 24"
                   strokeWidth={1.5}
@@ -213,17 +216,17 @@ export function UploadForm() {
                     d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                <p className="text-sm font-semibold text-emerald-800">
+                <p className="text-sm font-semibold text-primary">
                   {selectedFile.name}
                 </p>
-                <p className="mt-1 text-xs text-emerald-600">
+                <p className="mt-1 text-xs text-primary/70">
                   {(selectedFile.size / 1024).toFixed(0)} KB — Click or drop to replace
                 </p>
               </>
             ) : (
               <>
                 <svg
-                  className="mb-2 h-8 w-8 text-slate-400"
+                  className="mb-2 h-8 w-8 text-on-surface-variant/50"
                   fill="none"
                   viewBox="0 0 24 24"
                   strokeWidth={1.5}
@@ -235,10 +238,10 @@ export function UploadForm() {
                     d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
                   />
                 </svg>
-                <p className="text-sm font-medium text-slate-700">
+                <p className="text-sm font-medium text-on-surface">
                   Drop your PDF here or click to browse
                 </p>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-on-surface-variant">
                   PDF files only, up to 10 MB
                 </p>
               </>
@@ -248,16 +251,16 @@ export function UploadForm() {
 
         {/* Text paste area */}
         {mode === "text" && (
-          <label className="grid gap-2 text-sm font-medium text-slate-700">
+          <label className="grid gap-2 text-sm font-medium text-on-surface">
             Contract text
             <textarea
               value={contractText}
               onChange={(event) => setContractText(event.target.value)}
               placeholder="Paste at least 120 characters from the contract here..."
               rows={10}
-              className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm leading-6 text-slate-950 outline-none transition focus:border-slate-950"
+              className="glass-input rounded-2xl px-4 py-3 text-sm leading-6"
             />
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-on-surface-variant">
               {contractText.length} / 120 characters minimum
             </p>
           </label>
@@ -273,27 +276,23 @@ export function UploadForm() {
                 key={plan}
                 type="button"
                 onClick={() => setPlanType(plan)}
-                className={
+                className={`rounded-2xl px-4 py-4 text-left transition-all duration-300 ${
                   isSelected
-                    ? "rounded-2xl border border-slate-900 bg-slate-950 px-4 py-4 text-left text-white transition hover:bg-slate-800"
-                    : "rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-left transition hover:border-slate-300 hover:bg-slate-100"
-                }
+                    ? "bg-primary/10 border border-primary/30 shadow-glow-primary"
+                    : "bg-surface-container-lowest/40 border border-outline-variant/15 hover:border-outline-variant/30 hover:bg-surface-container-lowest/60"
+                }`}
               >
                 <span
-                  className={
-                    isSelected
-                      ? "block text-sm font-semibold"
-                      : "block text-sm font-semibold text-slate-950"
-                  }
+                  className={`block text-sm font-semibold ${
+                    isSelected ? "text-primary" : "text-on-surface"
+                  }`}
                 >
                   {plan === "basic" ? "Basic" : "Premium"} — {planCopy[plan].price}
                 </span>
                 <span
-                  className={
-                    isSelected
-                      ? "mt-1 block text-sm text-slate-200"
-                      : "mt-1 block text-sm text-slate-600"
-                  }
+                  className={`mt-1 block text-sm ${
+                    isSelected ? "text-primary/70" : "text-on-surface-variant"
+                  }`}
                 >
                   {planCopy[plan].description}
                 </span>
@@ -303,7 +302,7 @@ export function UploadForm() {
         </div>
 
         {error ? (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-800">
+          <div className="rounded-2xl bg-error-container/20 border border-error/20 p-4 text-sm leading-6 text-error">
             {error}
           </div>
         ) : null}
@@ -311,9 +310,19 @@ export function UploadForm() {
         <button
           type="submit"
           disabled={isBusy}
-          className="inline-flex items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+          className="btn-primary inline-flex items-center justify-center rounded-full px-6 py-3.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
         >
-          {isBusy ? "Analyzing contract..." : "Scan contract"}
+          {isBusy ? (
+            <span className="flex items-center gap-2">
+              <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              Analyzing contract...
+            </span>
+          ) : (
+            "Scan Contract →"
+          )}
         </button>
       </form>
     </section>

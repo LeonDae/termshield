@@ -1,4 +1,4 @@
-import pdf from "pdf-parse";
+import PDFParser from "pdf2json";
 
 const MIN_EXTRACTED_TEXT_LENGTH = 120;
 
@@ -8,26 +8,37 @@ const MIN_EXTRACTED_TEXT_LENGTH = 120;
  * a meaningful contract.
  */
 export async function extractTextFromPDF(buffer: Buffer): Promise<string> {
-  let result;
-  try {
-    result = await pdf(buffer);
-  } catch (err: unknown) {
-    throw new Error(
-      "The uploaded PDF file is corrupted or could not be read (e.g., bad format or XRef entry). " +
-      "Please re-save the PDF or paste the text directly."
-    );
-  }
+  return new Promise((resolve, reject) => {
+    const pdfParser = new PDFParser(null, 1); // 1 = plain text mode
 
-  const text = sanitizeExtractedText(result.text);
+    pdfParser.on("pdfParser_dataError", (errData: any) => {
+      console.error("PDF Parsing error:", errData.parserError);
+      reject(
+        new Error(
+          "The uploaded PDF file is corrupted or could not be read (e.g., bad format or XRef entry). " +
+          "Please re-save the PDF or paste the text directly."
+        )
+      );
+    });
 
-  if (text.length < MIN_EXTRACTED_TEXT_LENGTH) {
-    throw new Error(
-      "This PDF appears to be an image or contains too little text. " +
-      "Please copy-paste the contract text instead."
-    );
-  }
+    pdfParser.on("pdfParser_dataReady", () => {
+      const parsedText = pdfParser.getRawTextContent();
+      const text = sanitizeExtractedText(parsedText);
 
-  return text;
+      if (text.length < MIN_EXTRACTED_TEXT_LENGTH) {
+        reject(
+          new Error(
+            "This PDF appears to be an image or contains too little text. " +
+            "Please copy-paste the contract text instead."
+          )
+        );
+      } else {
+        resolve(text);
+      }
+    });
+
+    pdfParser.parseBuffer(buffer);
+  });
 }
 
 /**

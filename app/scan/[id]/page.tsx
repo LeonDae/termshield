@@ -20,7 +20,7 @@ export default async function ScanResultsPage({
         <div className="mx-auto max-w-5xl space-y-6">
           <Link
             href="/"
-            className="inline-flex text-sm font-medium text-slate-600 transition hover:text-slate-950"
+            className="inline-flex text-sm font-medium text-on-surface-variant transition hover:text-primary"
           >
             ← Back to home
           </Link>
@@ -34,14 +34,14 @@ export default async function ScanResultsPage({
   if (!hasSupabaseServerConfig()) {
     return (
       <main className="min-h-screen px-6 py-10 sm:px-8 lg:px-10">
-        <section className="mx-auto max-w-4xl rounded-[2rem] border border-amber-200 bg-amber-50 p-8 shadow-[0_20px_80px_rgba(15,23,42,0.08)]">
-          <p className="text-sm uppercase tracking-[0.2em] text-amber-700">
+        <section className="mx-auto max-w-4xl glass-card rounded-3xl p-8 border-yellow-400/20">
+          <p className="text-label text-yellow-300">
             Setup Required
           </p>
-          <h1 className="mt-3 text-3xl font-semibold text-amber-950">
+          <h1 className="mt-3 text-3xl font-semibold text-on-surface">
             Supabase is not connected yet
           </h1>
-          <p className="mt-3 max-w-2xl text-base leading-7 text-amber-900">
+          <p className="mt-3 max-w-2xl text-base leading-7 text-on-surface-variant">
             {getScanSetupMessage()}
           </p>
         </section>
@@ -63,7 +63,7 @@ export default async function ScanResultsPage({
       <div className="mx-auto max-w-5xl space-y-6">
         <Link
           href="/"
-          className="inline-flex text-sm font-medium text-slate-600 transition hover:text-slate-950"
+          className="inline-flex text-sm font-medium text-on-surface-variant transition hover:text-primary"
         >
           ← Back to home
         </Link>

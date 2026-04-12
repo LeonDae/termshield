@@ -8,33 +8,33 @@ interface RiskDashboardProps {
 
 export function RiskDashboard({ scan }: RiskDashboardProps) {
   return (
-    <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_80px_rgba(15,23,42,0.08)]">
+    <section className="glass-card rounded-3xl p-6 sm:p-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-            Results dashboard
+          <p className="text-label text-primary">
+            Results Dashboard
           </p>
           <div>
-            <h2 className="text-2xl font-semibold text-slate-950">
+            <h2 className="text-2xl font-semibold text-on-surface">
               {scan.filename}
             </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
+            <p className="mt-2 text-sm leading-6 text-on-surface-variant">
               This UI is the frontend. Later it will read live results from
               `/api/scan/[id]`, which is the backend route for scan polling.
             </p>
           </div>
         </div>
 
-        <div className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:min-w-72">
-          <div className="flex items-center justify-between text-sm text-slate-600">
+        <div className="grid gap-3 rounded-2xl bg-surface-container-lowest/40 border border-outline-variant/10 p-4 sm:min-w-72">
+          <div className="flex items-center justify-between text-sm text-on-surface-variant">
             <span>Status</span>
-            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-800">
+            <span className="rounded-full bg-primary/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
               {scan.status}
             </span>
           </div>
-          <div className="flex items-center justify-between text-sm text-slate-600">
+          <div className="flex items-center justify-between text-sm text-on-surface-variant">
             <span>Plan</span>
-            <span className="font-semibold uppercase text-slate-950">
+            <span className="font-semibold uppercase text-on-surface">
               {scan.planType}
             </span>
           </div>

@@ -47,6 +47,7 @@ export async function POST(request: Request) {
       // Convert file to Buffer and extract text
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
+      console.log("PDF Upload received. File name:", filename, "Buffer length:", buffer.length);
       contractText = await extractTextFromPDF(buffer);
     } else {
       // ---------- JSON / paste text flow ----------
