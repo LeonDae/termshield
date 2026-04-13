@@ -13,6 +13,8 @@ export default function SettingsPage() {
   const [whatsappEnabled, setWhatsappEnabled] = useState(false);
   const [emailEnabled, setEmailEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -196,14 +198,68 @@ export default function SettingsPage() {
               Sign Out
             </button>
             <button
+              onClick={() => setShowDeleteModal(true)}
               className="rounded-full bg-error/10 border border-error/20 px-5 py-2 text-sm font-semibold text-error transition hover:bg-error/20"
-              disabled
             >
-              Delete Account (Coming Soon)
+              Delete Account
             </button>
           </div>
         </div>
       </main>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="glass-card w-full max-w-sm rounded-2xl p-6 border-error/20 shadow-xl">
+            <h3 className="text-xl font-bold text-on-surface">Delete Account?</h3>
+            <p className="mt-2 text-sm text-on-surface-variant leading-relaxed">
+              This action cannot be undone. All your data, risk reports, and settings will be permanently removed.
+            </p>
+            <div className="mt-6 flex flex-col gap-3">
+              <button
+                onClick={async () => {
+                  try {
+                    setIsDeleting(true);
+                    const session = await supabase.auth.getSession();
+                    const token = session.data.session?.access_token;
+                    if (!token) throw new Error("Not authenticated");
+
+                    const res = await fetch("/api/auth/delete", {
+                      method: "DELETE",
+                      headers: {
+                        "Authorization": `Bearer ${token}`
+                      }
+                    });
+                    
+                    if (!res.ok) {
+                      const data = await res.json();
+                      throw new Error(data.error || "Failed to delete account");
+                    }
+
+                    await supabase.auth.signOut();
+                    router.push("/login");
+                  } catch (err) {
+                    console.error("Delete account error:", err);
+                    alert(err instanceof Error ? err.message : "Failed to delete account. Please try again later.");
+                    setIsDeleting(false);
+                  }
+                }}
+                disabled={isDeleting}
+                className="w-full flex justify-center items-center rounded-xl bg-error/90 hover:bg-error px-4 py-3 text-sm font-bold text-white transition disabled:opacity-50"
+              >
+                {isDeleting ? "Deleting..." : "Yes, Delete My Account"}
+              </button>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={isDeleting}
+                className="w-full rounded-xl bg-surface-container px-4 py-3 text-sm font-semibold text-on-surface transition hover:bg-surface-container-high disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

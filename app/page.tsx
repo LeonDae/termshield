@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
+import { useAuth } from "@/contexts/AuthContext";
 
 /* ═══════════════════════════════════════════════════════════════
    SCROLL ANIMATION HOOK
@@ -14,14 +15,16 @@ function useScrollAnimations() {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             entry.target.classList.add("visible");
+          } else {
+            entry.target.classList.remove("visible");
           }
         });
       },
-      { threshold: 0.1, rootMargin: "0px 0px -60px 0px" }
+      { threshold: 0.05, rootMargin: "0px 0px -40px 0px" }
     );
 
     const elements = document.querySelectorAll(
-      ".animate-on-scroll, .animate-on-scroll-scale, .animate-on-scroll-left, .animate-on-scroll-right"
+      ".animate-on-scroll, .animate-on-scroll-scale, .animate-on-scroll-left, .animate-on-scroll-right, .animate-turn-in-left, .animate-turn-in-right"
     );
     elements.forEach((el) => observer.observe(el));
 
@@ -34,6 +37,7 @@ function useScrollAnimations() {
    ═══════════════════════════════════════════════════════════════ */
 function FloatingNav() {
   const navRef = useRef<HTMLElement>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -77,18 +81,31 @@ function FloatingNav() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Link
-            href="/login"
-            className="btn-secondary rounded-full px-5 py-2.5 text-sm hidden sm:inline-flex"
-          >
-            Log In
-          </Link>
-          <Link
-            href="/signup"
-            className="btn-primary rounded-full px-5 py-2.5 text-sm font-semibold"
-          >
-            Get Started
-          </Link>
+          {user ? (
+            <Link href="/settings" className="flex items-center gap-2 group p-1.5 rounded-full hover:bg-surface-container-high transition">
+              <span className="text-sm font-medium text-on-surface truncate max-w-[120px] hidden sm:block">
+                {user.user_metadata?.full_name || user.email?.split('@')[0]}
+              </span>
+              <div className="h-8 w-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs ring-2 ring-transparent group-hover:ring-primary/30 transition-all">
+                {(user.user_metadata?.full_name || user.email || "U")[0].toUpperCase()}
+              </div>
+            </Link>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="btn-secondary rounded-full px-5 py-2.5 text-sm hidden sm:inline-flex"
+              >
+                Log In
+              </Link>
+              <Link
+                href="/signup"
+                className="btn-primary rounded-full px-5 py-2.5 text-sm font-semibold"
+              >
+                Get Started
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </nav>
@@ -418,6 +435,75 @@ function UploadFormInline() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   ROADMAP SECTION — Upcoming Features with 3D marble cards
+   ═══════════════════════════════════════════════════════════════ */
+const upcomingFeatures = [
+  { id: "01", title: "Smart invoice builder", tag: "Freelancer", icon: "📄", roleColor: "text-emerald-300", roleBg: "bg-emerald-500/10" },
+  { id: "02", title: "Payment tracker + overdue alerts", tag: "Freelancer", icon: "💸", roleColor: "text-emerald-300", roleBg: "bg-emerald-500/10" },
+  { id: "03", title: "Freelance rate calculator", tag: "Freelancer", icon: "🧮", roleColor: "text-emerald-300", roleBg: "bg-emerald-500/10" },
+  { id: "04", title: "AI proposal & SOW builder", tag: "Freelancer", icon: "📝", roleColor: "text-emerald-300", roleBg: "bg-emerald-500/10" },
+  { id: "05", title: "Contract vault", tag: "Both sides", icon: "🗄️", roleColor: "text-primary", roleBg: "bg-primary/10" },
+  { id: "06", title: "Client portal", tag: "Client", icon: "🤝", roleColor: "text-blue-300", roleBg: "bg-blue-500/10" },
+  { id: "07", title: "Project milestone tracker", tag: "Both sides", icon: "🏁", roleColor: "text-primary", roleBg: "bg-primary/10" },
+  { id: "08", title: "Freelance tax estimator (India)", tag: "Freelancer", icon: "📊", roleColor: "text-emerald-300", roleBg: "bg-emerald-500/10" },
+  { id: "09", title: "Verified freelancer profile", tag: "Both sides", icon: "✅", roleColor: "text-primary", roleBg: "bg-primary/10" },
+  { id: "10", title: "Dispute documentation kit", tag: "Freelancer", icon: "⚖️", roleColor: "text-emerald-300", roleBg: "bg-emerald-500/10" },
+  { id: "11", title: "Freelance income analytics", tag: "Freelancer", icon: "📈", roleColor: "text-emerald-300", roleBg: "bg-emerald-500/10" },
+  { id: "12", title: "Contract template library", tag: "Both sides", icon: "📚", roleColor: "text-primary", roleBg: "bg-primary/10" },
+  { id: "13", title: "Milestone escrow (light)", tag: "Both sides", icon: "🔒", roleColor: "text-primary", roleBg: "bg-primary/10" },
+  { id: "14", title: "AI contract negotiation coach", tag: "Freelancer", icon: "🤖", roleColor: "text-emerald-300", roleBg: "bg-emerald-500/10" },
+];
+
+function RoadmapSection() {
+  return (
+    <section id="roadmap" className="relative py-24 lg:py-32 overflow-hidden bg-background">
+      <div className="absolute inset-0 z-0 opacity-40">
+        <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-primary/10 to-transparent blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-1/2 h-full bg-gradient-to-r from-secondary/10 to-transparent blur-3xl"></div>
+      </div>
+      <div className="relative z-10 mx-auto max-w-7xl px-6 lg:px-8 perspective-wrapper">
+        <div className="text-center animate-on-scroll mb-16">
+          <span className="text-label text-primary">Coming Soon</span>
+          <h2 className="mt-3 text-display text-3xl font-bold sm:text-4xl lg:text-5xl">
+            The future of <span className="gradient-text">freelance protection.</span>
+          </h2>
+          <p className="mx-auto mt-4 max-w-xl text-on-surface-variant">
+            We are building a comprehensive suite to secure every aspect of your independent business.
+          </p>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {upcomingFeatures.map((feat, i) => {
+            const isLeft = i % 2 === 0;
+            const animationClass = isLeft ? 'animate-turn-in-left' : 'animate-turn-in-right';
+            return (
+              <div
+                key={feat.id}
+                className={`${animationClass} stagger-${(i % 3) + 1} marble-card rounded-2xl p-5 flex items-center gap-4`}
+              >
+                <div className="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-xl bg-surface-container-highest shadow-inner text-xl">
+                  {feat.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-semibold text-on-surface truncate pr-2" title={feat.title}>
+                    {feat.title}
+                  </h3>
+                  <div className="mt-1 flex items-center">
+                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wider ${feat.roleColor} ${feat.roleBg}`}>
+                      {feat.tag}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
    PRICING — 2 glassmorphic plan cards
    ═══════════════════════════════════════════════════════════════ */
 function PricingSection() {
@@ -668,7 +754,7 @@ function Footer() {
 
         <div className="mt-12 border-t border-outline-variant/10 pt-8 text-center">
           <p className="text-xs text-on-surface-variant/60">
-            © 2025 TermShield. The Luminescent Ledger. All rights reserved.
+            © 2025 TermShield. A ScubeNet Technologies product. All rights reserved.
           </p>
         </div>
       </div>
@@ -690,6 +776,7 @@ export default function HomePage() {
         <FeaturesSection />
         <HowItWorksSection />
         <ScanSection />
+        <RoadmapSection />
         <PricingSection />
         <TestimonialsSection />
         <CTASection />

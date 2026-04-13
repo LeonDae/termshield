@@ -69,7 +69,7 @@ export default function SignupPage() {
         <div className="glass-card rounded-3xl p-8">
           <h1 className="text-2xl font-bold text-on-surface">Create Account</h1>
           <p className="mt-1 text-sm text-on-surface-variant">
-            Join the frontier of Luminescent Ledger technology.
+            Join the frontier of ScubeNet Technologies.
           </p>
 
           {error && (
@@ -166,7 +166,7 @@ export default function SignupPage() {
 
         {/* Footer */}
         <p className="mt-8 text-center text-xs text-on-surface-variant/50">
-          © 2025 TermShield. Protected by Luminescent Ledger technology.
+          © 2025 TermShield. A ScubeNet Technologies product.
         </p>
       </div>
     </div>

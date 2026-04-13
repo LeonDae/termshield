@@ -45,7 +45,7 @@ export default function LoginPage() {
               Term<span className="text-primary">Shield</span>
             </span>
           </Link>
-          <p className="mt-2 text-sm text-on-surface-variant">Securing the Luminescent Ledger.</p>
+          <p className="mt-2 text-sm text-on-surface-variant">Powered by ScubeNet Technologies.</p>
         </div>
 
         {/* Login card */}
@@ -125,7 +125,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <p className="mt-8 text-center text-xs text-on-surface-variant/50">
-          © 2025 TermShield. Protected by Luminescent Ledger technology.
+          © 2025 TermShield. A ScubeNet Technologies product.
         </p>
       </div>
     </div>
