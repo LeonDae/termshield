@@ -2,7 +2,21 @@
 
 **Intelligent AI-Powered Contract Protection for India's Freelancers & Agencies**
 
-TermShield scans client contracts for predatory terms and risk patterns that silently cost Indian freelancers lakhs of rupees. In under 60 seconds, it provides plain-English risk detection, financial impact scoring, and one-click draft responses to help negotiate better contracts.
+TermShield scans client contracts for predatory terms and risk patterns that silently cost Indian freelancers lakhs of rupees. In under 60 seconds, it provides plain-English risk detection, financial loss estimations, and copy-paste negotiation templates.
+
+---
+
+## ✨ Try Now & Scan Your Contract
+
+<div align="center">
+
+### 🚀 **Ready to protect your contracts?**
+
+**[🔐 Try TermShield Now →](https://termshield-rho.vercel.app/)**
+
+*Scan your first contract in under 60 seconds. No credit card required.*
+
+</div>
 
 ---
 
@@ -16,7 +30,7 @@ Most freelancers and small agencies in India lose money not because of a lack of
 - **Restrictive Non-Competes** that block freelancers from working in their own industry.
 
 ### The Solution
-TermShield serves as the first line of defense. By parsing uploaded PDF contracts and feeding them through a semantic RAG (Retrieval-Augmented Generation) pipeline, TermShield analyzes critical legal clauses in seconds. It empowers freelancers with:
+TermShield serves as the first line of defense. By parsing uploaded PDF contracts and feeding them through a semantic RAG (Retrieval-Augmented Generation) pipeline, TermShield analyzes critical legal terms and returns:
 - **Visual Risk Classification** (Critical, Important, Safe).
 - **Financial Loss Estimations** in INR.
 - **1-Click Professional Negotiation Drafts** to copy-paste directly to the client.
@@ -65,7 +79,7 @@ graph TD
 
 1. **Text Extraction & Sanitization**: PDF binaries are parsed stream-by-stream using `pdf2json`, sanitizing control characters to prevent breaks in JSON serialization.
 2. **Recursive Chunking**: The contract text is broken down into overlapping chunks (size `800`, overlap `100`) to preserve context.
-3. **Semantic Querying**: Using cosine similarity between the chunk embeddings and four legal query vectors (covering IP, Payments, Exclusivity, and Termination), the pipeline targets the exact location of potential risks.
+3. **Semantic Querying**: Using cosine similarity between the chunk embeddings and four legal query vectors (covering IP, Payments, Exclusivity, and Termination), the pipeline targets the exact location of risk.
 4. **Structured JSON Generation**: The retrieved context is formatted into a prompt demanding exactly four categorized evaluations. Gemini returns this in a schema enforced by Zod.
 
 ---
