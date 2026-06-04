@@ -9,7 +9,7 @@ const MIN_EXTRACTED_TEXT_LENGTH = 120;
  */
 export async function extractTextFromPDF(buffer: Buffer): Promise<string> {
   return new Promise((resolve, reject) => {
-    const pdfParser = new PDFParser(null, 1); // 1 = plain text mode
+    const pdfParser = new PDFParser(null, true); // true = plain text mode
 
     pdfParser.on("pdfParser_dataError", (errData: any) => {
       console.error("PDF Parsing error:", errData.parserError);
