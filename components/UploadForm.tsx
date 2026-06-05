@@ -2,22 +2,24 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useRef, useTransition, useCallback } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 type PlanType = "basic" | "premium";
 
 const planCopy: Record<PlanType, { price: string; description: string }> = {
   basic: {
-    price: "₹199",
+    price: "₹49",
     description: "Risk scan across 4 categories.",
   },
   premium: {
-    price: "₹499",
+    price: "₹99",
     description: "Risk scan + fix messages + send.",
   },
 };
 
 export function UploadForm() {
   const router = useRouter();
+  const { session } = useAuth();
   const [planType, setPlanType] = useState<PlanType>("premium");
   const [contractText, setContractText] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -94,13 +96,17 @@ export function UploadForm() {
 
         response = await fetch("/api/scan/upload", {
           method: "POST",
+          headers: session?.access_token ? { "Authorization": `Bearer ${session.access_token}` } : undefined,
           body: formData,
         });
       } else {
         // Text paste — JSON
         response = await fetch("/api/scan/upload", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(session?.access_token ? { "Authorization": `Bearer ${session.access_token}` } : {}),
+          },
           body: JSON.stringify({
             contractText,
             planType,

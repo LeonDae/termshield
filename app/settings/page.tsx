@@ -15,6 +15,34 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+
+  const [name, setName] = useState("");
+  const [savingName, setSavingName] = useState(false);
+  const [nameMessage, setNameMessage] = useState("");
+
+  useEffect(() => {
+    // Check local storage for preference
+    const savedTheme = localStorage.getItem("termshield-theme");
+    if (savedTheme === "light") {
+      setTheme("light");
+      document.body.classList.add("light-theme");
+    } else {
+      setTheme("dark");
+      document.body.classList.remove("light-theme");
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+    localStorage.setItem("termshield-theme", nextTheme);
+    if (nextTheme === "light") {
+      document.body.classList.add("light-theme");
+    } else {
+      document.body.classList.remove("light-theme");
+    }
+  };
 
   useEffect(() => {
     if (!loading && !user) {
@@ -23,8 +51,26 @@ export default function SettingsPage() {
     if (user) {
       setWhatsappEnabled(user.user_metadata?.whatsapp_integration === true);
       setEmailEnabled(user.user_metadata?.email_integration === true);
+      setName(user.user_metadata?.full_name || "");
     }
   }, [user, loading, router]);
+
+  const handleSaveName = async () => {
+    setSavingName(true);
+    setNameMessage("");
+    const { error } = await supabase.auth.updateUser({
+      data: {
+        full_name: name,
+      }
+    });
+    setSavingName(false);
+    if (error) {
+      setNameMessage("Failed to update name: " + error.message);
+    } else {
+      setNameMessage("Name updated successfully!");
+      setTimeout(() => setNameMessage(""), 3000);
+    }
+  };
 
   const toggleSetting = async (key: string, currentValue: boolean) => {
     const newValue = !currentValue;
@@ -51,7 +97,7 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <header className="glass-heavy sticky top-0 z-40" style={{ borderBottom: '1px solid rgba(60,74,66,0.2)' }}>
+      <header className="glass-heavy sticky top-0 z-40 transition-colors duration-500" style={{ borderBottom: '1px solid var(--outline-variant)' }}>
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
           <Link href="/" className="flex items-center gap-2 group">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary/20">
@@ -110,6 +156,45 @@ export default function SettingsPage() {
                   {user.email} <br />
                   <span className="opacity-70">Member since {new Date(user.created_at).toLocaleDateString()}</span>
                 </p>
+
+                {/* Display Name Section */}
+                <div className="mt-4 border-t border-outline-variant/15 pt-4">
+                  <label className="block">
+                    <span className="text-xs font-medium text-on-surface-variant">Display Name</span>
+                    <div className="mt-1.5 flex gap-3">
+                      <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="John Doe"
+                        className="glass-input flex-1 rounded-xl px-4 py-2 text-sm"
+                      />
+                      <button
+                        onClick={handleSaveName}
+                        disabled={savingName || (user.user_metadata?.full_name === name)}
+                        className="btn-primary rounded-full px-5 py-2 text-xs font-semibold shadow-glow-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {savingName ? "Saving..." : "Save"}
+                      </button>
+                    </div>
+                  </label>
+                  {nameMessage && (
+                    <p className={`mt-2 text-xs font-medium ${nameMessage.includes("Failed") ? "text-error" : "text-primary animate-pulse"}`}>
+                      {nameMessage}
+                    </p>
+                  )}
+                </div>
+
+                {/* Scan History Link */}
+                <div className="mt-4 pt-4 border-t border-outline-variant/15 flex justify-between items-center">
+                  <span className="text-xs text-on-surface-variant">Scan History</span>
+                  <Link href="/history" className="text-xs font-semibold text-primary hover:text-primary-fixed transition flex items-center gap-1">
+                    View Scan History
+                    <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                    </svg>
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
@@ -193,7 +278,7 @@ export default function SettingsPage() {
           <div className="mt-4 flex gap-3">
              <button
               onClick={() => { supabase.auth.signOut(); router.push("/login"); }}
-              className="rounded-full flex items-center justify-center w-32 bg-surface-container-highest px-4 py-2 text-sm font-semibold text-on-surface transition hover:bg-white/10"
+              className="rounded-full flex items-center justify-center w-32 bg-surface-container-highest px-4 py-2 text-sm font-semibold text-on-surface transition hover:bg-on-surface/10"
             >
               Sign Out
             </button>

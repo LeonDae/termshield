@@ -8,6 +8,7 @@ import {
 } from "@/lib/scans";
 import { extractTextFromPDF } from "@/lib/pdf";
 import { runLLMPipeline } from "@/lib/pipeline";
+import { createSupabaseServerClient } from "@/lib/supabase";
 
 /**
  * POST /api/scan/upload
@@ -64,8 +65,27 @@ export async function POST(request: Request) {
       planType,
     });
 
+    // Try to get authenticated user
+    const authHeader = request.headers.get("authorization") || request.headers.get("Authorization");
+    let userId: string | undefined;
+
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.substring(7);
+      if (token) {
+        try {
+          const supabase = createSupabaseServerClient();
+          const { data: { user } } = await supabase.auth.getUser(token);
+          if (user) {
+            userId = user.id;
+          }
+        } catch (err) {
+          console.error("Auth token verification failed in scan upload API:", err);
+        }
+      }
+    }
+
     // Create the scan record in Supabase (status: pending)
-    const scan = await createScanRecord(input);
+    const scan = await createScanRecord(input, userId);
 
     // We must await this pipeline locally because Next.js dev server terminates background
     // promises as soon as the HTTP response goes out!

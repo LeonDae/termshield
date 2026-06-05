@@ -1,8 +1,8 @@
 import crypto from "crypto";
 import Razorpay from "razorpay";
 
-export const BASIC_SCAN_AMOUNT_PAISE = 19900;   // ₹199
-export const PREMIUM_SCAN_AMOUNT_PAISE = 49900;  // ₹499
+export const BASIC_SCAN_AMOUNT_PAISE = 4900;   // ₹49
+export const PREMIUM_SCAN_AMOUNT_PAISE = 9900;  // ₹99
 
 export function getPlanAmount(plan: "basic" | "premium") {
   return plan === "premium" ? PREMIUM_SCAN_AMOUNT_PAISE : BASIC_SCAN_AMOUNT_PAISE;

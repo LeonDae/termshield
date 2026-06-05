@@ -5,11 +5,20 @@ export async function runLLMPipeline(scanId: string, contractText: string) {
   try {
     const supabase = createSupabaseServerClient();
 
-    // Mark scan as processing
-    await supabase
+    // Mark scan as processing and retrieve user_id and filename
+    const { data: scanRow, error: updateProcessError } = await supabase
       .from("scans")
       .update({ status: "processing" })
-      .eq("id", scanId);
+      .eq("id", scanId)
+      .select("user_id, filename")
+      .single();
+
+    if (updateProcessError) {
+      console.warn(`Failed to update/retrieve scan info for ${scanId}:`, updateProcessError.message);
+    }
+
+    const userId = scanRow?.user_id;
+    const filename = scanRow?.filename;
 
     // Run Gemini LLM analysis with Zod validation
     const analysis = await analyzeContractRisks(contractText);
@@ -52,6 +61,30 @@ export async function runLLMPipeline(scanId: string, contractText: string) {
 
     if (updateError) {
       throw new Error(`Failed to update scan status: ${updateError.message}`);
+    }
+
+    // If user is logged in, insert history row
+    if (userId) {
+      const riskSummary = analysis.risks.map((r) => ({
+        category: r.category,
+        severity: r.severity,
+        fixMessage: r.fix_message,
+      }));
+
+      const { error: historyError } = await supabase
+        .from("scan_history")
+        .insert({
+          user_id: userId,
+          scan_id: scanId,
+          filename: filename || "untitled-contract.txt",
+          confidence_score: Math.round(avgConfidence * 100),
+          risk_summary: riskSummary,
+          was_exported: false,
+        });
+
+      if (historyError) {
+        console.error("Failed to insert scan history:", historyError.message);
+      }
     }
   } catch (error) {
     console.error(`Pipeline failed for scan ${scanId}:`, error);

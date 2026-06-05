@@ -11,7 +11,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -69,7 +69,7 @@ export default function SignupPage() {
         <div className="glass-card rounded-3xl p-8">
           <h1 className="text-2xl font-bold text-on-surface">Create Account</h1>
           <p className="mt-1 text-sm text-on-surface-variant">
-            Join the frontier of ScubeNet Technologies.
+            Join the frontier of TermShield.
           </p>
 
           {error && (
@@ -166,7 +166,7 @@ export default function SignupPage() {
 
         {/* Footer */}
         <p className="mt-8 text-center text-xs text-on-surface-variant/50">
-          © 2025 TermShield. A ScubeNet Technologies product.
+          © 2026 TermShield. forthefreelancersbyafreelancer built by Ditsu Kundu.
         </p>
       </div>
     </div>

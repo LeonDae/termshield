@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import type { Scan } from "@/types";
+import { ShareModal } from "@/components/ShareModal";
+import { severityStyles, categoryLabels, categoryIcons } from "@/components/RiskCard";
 
 interface ScanPollerProps {
   scanId: string;
@@ -16,6 +18,7 @@ export function ScanPoller({ scanId, initialScan }: ScanPollerProps) {
   const [scan, setScan] = useState<Scan | null>(initialScan ?? null);
   const [error, setError] = useState("");
   const [isPolling, setIsPolling] = useState(true);
+  const [isShareOpen, setIsShareOpen] = useState(false);
 
   const fetchScan = useCallback(async () => {
     try {
@@ -145,49 +148,93 @@ export function ScanPoller({ scanId, initialScan }: ScanPollerProps) {
     (a, b) => severityOrder[a.severity] - severityOrder[b.severity]
   );
 
-  const criticalCount = scan.risks.filter((r) => r.severity === "critical").length;
-  const importantCount = scan.risks.filter((r) => r.severity === "important").length;
-  const safeCount = scan.risks.filter((r) => r.severity === "safe").length;
+  const categories = [
+    { key: "ip", label: "Intellectual Property", icon: "⚖️" },
+    { key: "payment", label: "Payment Terms", icon: "💸" },
+    { key: "non-compete", label: "Non-Compete", icon: "💼" },
+    { key: "termination", label: "Termination", icon: "🚪" }
+  ];
+
+  const severityLabels = {
+    critical: "Critical Risk 🔴",
+    important: "Important 🟡",
+    safe: "Safe 🟢"
+  };
+
+  const severityBadgeClass = {
+    critical: "border-error/30 text-error bg-error/5",
+    important: "border-yellow-500/30 text-yellow-300 bg-yellow-500/5",
+    safe: "border-primary/30 text-primary bg-primary/5"
+  };
 
   return (
     <section className="space-y-6">
       {/* Header */}
-      <div className="glass-card rounded-3xl p-6 sm:p-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="space-y-1">
-            <p className="text-label text-primary">
-              Scan Complete
-            </p>
-            <h2 className="text-2xl font-semibold text-on-surface">
+      <div className="glass-card rounded-3xl p-6 sm:p-8 relative overflow-hidden">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2.5">
+              <span className="inline-flex h-2.5 w-2.5 rounded-full bg-primary animate-pulse" />
+              <p className="text-label text-primary tracking-widest">
+                Scan Complete
+              </p>
+            </div>
+            <h2 className="text-2xl font-bold text-on-surface">
               {scan.filename}
             </h2>
+            <p className="text-sm text-on-surface-variant max-w-xl">
+              We completed scanning your contract across all 4 key areas. Review the risks below and take action directly using the controls.
+            </p>
           </div>
-          <div className="flex gap-3 text-sm">
-            <StatBadge
-              label="Critical"
-              count={criticalCount}
-              color="bg-error/15 text-error"
-            />
-            <StatBadge
-              label="Important"
-              count={importantCount}
-              color="bg-yellow-400/15 text-yellow-300"
-            />
-            <StatBadge
-              label="Safe"
-              count={safeCount}
-              color="bg-primary/15 text-primary"
-            />
+          
+          {/* Action buttons */}
+          <div className="flex flex-wrap gap-3 no-print">
+            <button
+              onClick={() => window.print()}
+              className="flex items-center justify-center gap-2 rounded-full border border-outline-variant/30 bg-surface-container-lowest/80 px-5 py-3 text-sm font-semibold text-on-surface hover:text-primary hover:border-primary/40 transition-all hover:scale-[1.02]"
+            >
+              <span>📄</span> Export PDF
+            </button>
+            <button
+              onClick={() => setIsShareOpen(true)}
+              className="flex items-center justify-center gap-2 rounded-full btn-primary px-6 py-3 text-sm font-semibold hover:scale-[1.02] shadow-glow-primary"
+            >
+              <span>📧</span> Send Counter Offer
+            </button>
           </div>
         </div>
 
-        {/* Confidence bar */}
-        <div className="mt-4">
-          <div className="flex items-center justify-between text-xs text-on-surface-variant">
-            <span>Overall confidence</span>
+        {/* Quick status summary grid */}
+        <div className="mt-8 grid gap-4 grid-cols-2 lg:grid-cols-4 border-t border-outline-variant/10 pt-6">
+          {categories.map((cat) => {
+            const risk = scan.risks.find((r) => r.category === cat.key);
+            const severity = risk?.severity || "safe";
+            return (
+              <div
+                key={cat.key}
+                className="rounded-2xl bg-surface-container-lowest/40 border border-outline-variant/10 p-4 flex flex-col justify-between"
+              >
+                <div className="flex items-center gap-2 text-on-surface-variant mb-3">
+                  <span className="text-lg">{cat.icon}</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider truncate">{cat.label}</span>
+                </div>
+                <div className="flex items-center">
+                  <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${severityBadgeClass[severity]}`}>
+                    {severityLabels[severity]}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Confidence bar (kept as overall dashboard metric) */}
+        <div className="mt-6 border-t border-outline-variant/5 pt-4">
+          <div className="flex items-center justify-between text-xs text-on-surface-variant mb-1.5">
+            <span>Overall confidence score</span>
             <span className="font-semibold text-primary">{scan.confidenceScore}%</span>
           </div>
-          <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-surface-container-lowest">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-surface-container-lowest">
             <div
               className="h-full rounded-full bg-gradient-to-r from-primary-container to-primary transition-all duration-700"
               style={{ width: `${scan.confidenceScore}%`, boxShadow: '0 0 12px rgba(78, 222, 163, 0.3)' }}
@@ -197,11 +244,16 @@ export function ScanPoller({ scanId, initialScan }: ScanPollerProps) {
       </div>
 
       {/* Risk cards */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-2">
         {sortedRisks.map((risk) => (
           <RiskResultCard key={risk.id} risk={risk} showFix={scan.planType === "premium"} />
         ))}
       </div>
+
+      {/* Share Modal */}
+      {isShareOpen && (
+        <ShareModal scan={scan} onClose={() => setIsShareOpen(false)} />
+      )}
     </section>
   );
 }
@@ -233,24 +285,6 @@ function StatusRow({
   );
 }
 
-function StatBadge({
-  label,
-  count,
-  color,
-}: {
-  label: string;
-  count: number;
-  color: string;
-}) {
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${color}`}
-    >
-      {count} {label}
-    </span>
-  );
-}
-
 function ScanLoadingSkeleton() {
   return (
     <div className="space-y-4">
@@ -265,28 +299,6 @@ function ScanLoadingSkeleton() {
   );
 }
 
-const severityStyles = {
-  critical: {
-    accent: "accent-critical",
-    badge: "bg-error/15 text-error",
-  },
-  important: {
-    accent: "accent-important",
-    badge: "bg-yellow-400/15 text-yellow-300",
-  },
-  safe: {
-    accent: "accent-safe",
-    badge: "bg-primary/15 text-primary",
-  },
-};
-
-const categoryLabels: Record<string, string> = {
-  ip: "Intellectual Property",
-  payment: "Payment Terms",
-  "non-compete": "Non-Compete",
-  termination: "Termination",
-};
-
 function RiskResultCard({
   risk,
   showFix,
@@ -298,7 +310,6 @@ function RiskResultCard({
     clauseText: string;
     explanation: string;
     fixMessage?: string;
-    confidence?: number;
   };
   showFix: boolean;
 }) {
@@ -306,40 +317,53 @@ function RiskResultCard({
 
   return (
     <div
-      className={`glass-card rounded-2xl p-5 ${style.accent} transition-all duration-300`}
+      className={`glass-card rounded-2xl p-6 ${style.accent} transition-all duration-300 flex flex-col justify-between relative overflow-hidden`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div>
+      <div>
+        <div className="flex items-center justify-between border-b border-outline-variant/10 pb-3 mb-4">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">{categoryIcons[risk.category] || "📄"}</span>
+            <h3 className="text-base font-semibold text-on-surface">
+              {categoryLabels[risk.category] ?? risk.category}
+            </h3>
+          </div>
           <span
             className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider ${style.badge}`}
           >
             {risk.severity}
           </span>
-          <h3 className="mt-2 text-sm font-semibold text-on-surface">
-            {categoryLabels[risk.category] ?? risk.category}
-          </h3>
         </div>
-        {risk.confidence !== undefined && (
-          <span className="text-xs text-on-surface-variant">
-            {Math.round(risk.confidence)}% conf.
-          </span>
-        )}
+
+        <div className="space-y-4">
+          {/* Monospace/Serif Document Clause */}
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant/70 mb-1.5 flex items-center gap-1.5">
+              <span>📄</span> Contract Clause
+            </h4>
+            <blockquote className="rounded-xl bg-surface-container-lowest border border-outline-variant/10 p-3.5 text-xs italic font-serif leading-relaxed text-on-surface-variant/90 shadow-inner">
+              &ldquo;{risk.clauseText}&rdquo;
+            </blockquote>
+          </div>
+
+          {/* Risk Explanation */}
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant/70 mb-1.5 flex items-center gap-1.5">
+              <span>⚠️</span> Risk Analysis
+            </h4>
+            <p className="text-sm leading-relaxed text-on-surface/90">
+              {risk.explanation}
+            </p>
+          </div>
+        </div>
       </div>
 
-      <blockquote className="mt-3 border-l-2 border-outline-variant/30 pl-3 text-xs italic leading-5 text-on-surface-variant">
-        &ldquo;{risk.clauseText}&rdquo;
-      </blockquote>
-
-      <p className="mt-3 text-sm leading-6 text-on-surface/80">
-        {risk.explanation}
-      </p>
-
+      {/* Fix Message (Premium only) */}
       {showFix && risk.fixMessage && (
-        <div className="mt-3 rounded-xl bg-surface-container-lowest/40 border border-outline-variant/10 p-3">
-          <p className="text-label text-primary/70">
-            Suggested fix message
-          </p>
-          <p className="mt-1 text-sm leading-6 text-on-surface/80">
+        <div className="rounded-xl bg-primary/5 border border-primary/20 p-4 mt-4 shadow-sm animate-slide-up">
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-primary mb-1.5 flex items-center gap-1.5">
+            <span>💡</span> Suggested Negotiation Edit
+          </h4>
+          <p className="text-sm leading-relaxed text-on-surface/90 font-medium">
             {risk.fixMessage}
           </p>
         </div>

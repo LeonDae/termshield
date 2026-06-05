@@ -1,5 +1,3 @@
-import type { Scan } from "@/types";
-
 interface ConfidenceBarProps {
   score: number;
 }

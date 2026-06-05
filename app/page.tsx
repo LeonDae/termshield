@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { UploadForm } from "@/components/UploadForm";
 
 /* ═══════════════════════════════════════════════════════════════
    SCROLL ANIMATION HOOK
@@ -32,19 +34,50 @@ function useScrollAnimations() {
   }, []);
 }
 
+const SECTIONS = ["features", "how-it-works", "pricing", "testimonials"];
+
 /* ═══════════════════════════════════════════════════════════════
    NAV — Floating glassmorphic navbar
    ═══════════════════════════════════════════════════════════════ */
 function FloatingNav() {
   const navRef = useRef<HTMLElement>(null);
+  const tabContainerRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
+
+  const [activeSection, setActiveSection] = useState("features");
+  const linkRefs = useRef<(HTMLAnchorElement | null)[]>([]);
+  const [bubbleStyle, setBubbleStyle] = useState({ left: 0, width: 0, opacity: 0 });
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+
+  useEffect(() => {
+    // Check local storage for preference
+    const savedTheme = localStorage.getItem("termshield-theme");
+    if (savedTheme === "light") {
+      setTheme("light");
+      document.body.classList.add("light-theme");
+    } else {
+      setTheme("dark");
+      document.body.classList.remove("light-theme");
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+    localStorage.setItem("termshield-theme", nextTheme);
+    if (nextTheme === "light") {
+      document.body.classList.add("light-theme");
+    } else {
+      document.body.classList.remove("light-theme");
+    }
+  };
 
   useEffect(() => {
     const handleScroll = () => {
       if (navRef.current) {
         if (window.scrollY > 50) {
           navRef.current.classList.add("glass-heavy");
-          navRef.current.style.borderBottom = "1px solid rgba(60,74,66,0.2)";
+          navRef.current.style.borderBottom = "1px solid var(--outline-variant)";
         } else {
           navRef.current.classList.remove("glass-heavy");
           navRef.current.style.borderBottom = "1px solid transparent";
@@ -54,6 +87,54 @@ function FloatingNav() {
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id);
+          }
+        });
+      },
+      { threshold: 0.25, rootMargin: "-25% 0px -45% 0px" }
+    );
+
+    const observeIds = ["features", "whats-new", "how-it-works", "pricing", "testimonials"];
+    observeIds.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  const measureTabs = useCallback(() => {
+    const activeIndex = SECTIONS.indexOf(activeSection);
+    const activeLink = linkRefs.current[activeIndex];
+    const container = tabContainerRef.current;
+    if (activeLink && container) {
+      const containerRect = container.getBoundingClientRect();
+      const linkRect = activeLink.getBoundingClientRect();
+      setBubbleStyle({
+        left: linkRect.left - containerRect.left,
+        width: linkRect.width,
+        opacity: 1,
+      });
+    } else {
+      setBubbleStyle(prev => ({ ...prev, opacity: 0 }));
+    }
+  }, [activeSection]);
+
+  useEffect(() => {
+    measureTabs();
+    window.addEventListener("resize", measureTabs);
+    const timer = setTimeout(measureTabs, 100);
+    return () => {
+      window.removeEventListener("resize", measureTabs);
+      clearTimeout(timer);
+    };
+  }, [measureTabs]);
 
   return (
     <nav
@@ -73,23 +154,94 @@ function FloatingNav() {
           </span>
         </Link>
 
-        <div className="hidden items-center gap-8 md:flex">
-          <a href="#features" className="text-sm text-on-surface-variant transition-colors hover:text-primary">Features</a>
-          <a href="#how-it-works" className="text-sm text-on-surface-variant transition-colors hover:text-primary">How it Works</a>
-          <a href="#pricing" className="text-sm text-on-surface-variant transition-colors hover:text-primary">Pricing</a>
-          <a href="#testimonials" className="text-sm text-on-surface-variant transition-colors hover:text-primary">Testimonials</a>
+        {/* Tab container with liquid glass bubble */}
+        <div className="hidden items-center md:flex gap-4">
+          <div
+            ref={tabContainerRef}
+            className="relative px-1 py-1 rounded-full border border-white/[0.06] bg-white/[0.03] backdrop-blur-xl flex items-center"
+          >
+            {/* Liquid glass sliding bubble */}
+            <div
+              className="nav-liquid-bubble"
+              style={{
+                left: bubbleStyle.left,
+                width: bubbleStyle.width,
+                opacity: bubbleStyle.opacity,
+              }}
+            />
+
+            {/* Links layer */}
+            {SECTIONS.map((section, i) => {
+              const labels: Record<string, string> = {
+                features: "Features",
+                "how-it-works": "How it Works",
+                pricing: "Pricing",
+                testimonials: "Testimonials",
+              };
+              return (
+                <a
+                  key={section}
+                  ref={(el) => { linkRefs.current[i] = el; }}
+                  href={`#${section}`}
+                  className={`relative z-10 px-4 py-2 text-sm font-medium rounded-full transition-colors duration-300 ${activeSection === section
+                      ? "text-white"
+                      : "text-on-surface-variant hover:text-on-surface"
+                    }`}
+                >
+                  {labels[section]}
+                </a>
+              );
+            })}
+          </div>
+
+          {/* Glowing What's New Tab */}
+          <a
+            href="#whats-new"
+            className="px-3.5 py-1.5 text-[11px] font-semibold text-primary rounded-full border border-primary/40 bg-primary/10 hover:bg-primary/25 transition-all duration-300 shadow-[0_0_15px_rgba(78,222,163,0.2)] hover:shadow-[0_0_20px_rgba(78,222,163,0.4)] uppercase tracking-wider flex items-center gap-1.5 animate-pulse"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+            What&apos;s New
+          </a>
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Theme Toggle Button */}
+          <button
+            onClick={toggleTheme}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-container hover:bg-surface-container-high border border-outline-variant/30 text-on-surface transition-all duration-300 hover:scale-[1.05]"
+            title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            aria-label="Toggle theme"
+          >
+            {theme === "dark" ? (
+              // Sun Icon (Orange/Amber)
+              <svg className="h-4 w-4 text-amber-400 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
+              </svg>
+            ) : (
+              // Moon Icon (Gold/Orange-Gold)
+              <svg className="h-4 w-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              </svg>
+            )}
+          </button>
+
           {user ? (
-            <Link href="/settings" className="flex items-center gap-2 group p-1.5 rounded-full hover:bg-surface-container-high transition">
-              <span className="text-sm font-medium text-on-surface truncate max-w-[120px] hidden sm:block">
-                {user.user_metadata?.full_name || user.email?.split('@')[0]}
-              </span>
-              <div className="h-8 w-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs ring-2 ring-transparent group-hover:ring-primary/30 transition-all">
-                {(user.user_metadata?.full_name || user.email || "U")[0].toUpperCase()}
-              </div>
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link
+                href="/history"
+                className="text-sm font-semibold text-on-surface-variant hover:text-primary transition px-3 py-1.5 rounded-full hover:bg-surface-container-high"
+              >
+                History
+              </Link>
+              <Link href="/settings" className="flex items-center gap-2 group p-1.5 rounded-full hover:bg-surface-container-high transition">
+                <span className="text-sm font-medium text-on-surface truncate max-w-[120px] hidden sm:block">
+                  {user.user_metadata?.full_name || user.email?.split('@')[0]}
+                </span>
+                <div className="h-8 w-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs ring-2 ring-transparent group-hover:ring-primary/30 transition-all">
+                  {(user.user_metadata?.full_name || user.email || "U")[0].toUpperCase()}
+                </div>
+              </Link>
+            </div>
           ) : (
             <>
               <Link
@@ -116,12 +268,21 @@ function FloatingNav() {
    HERO — Animated headline with mesh gradient glow
    ═══════════════════════════════════════════════════════════════ */
 function HeroSection() {
+  const { user } = useAuth();
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden mesh-gradient-hero pt-20">
       <div className="relative z-10 mx-auto max-w-7xl px-6 py-20 lg:px-8">
         <div className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
           {/* Left column */}
           <div className="space-y-8">
+            {user && (
+              <div style={{ animation: "fadeInUp 0.8s cubic-bezier(0.4,0,0.2,1) forwards" }}>
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-on-surface">
+                  Welcome, <span className="gradient-text">{user.user_metadata?.full_name || user.email?.split('@')[0]}</span>!
+                </h2>
+              </div>
+            )}
+
             <div className="animate-fade-in-up">
               <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.15em] text-primary">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
@@ -213,7 +374,7 @@ function HeroSection() {
                     <p className="text-2xl font-bold text-primary">87%</p>
                   </div>
                   <div className="h-16 w-16 rounded-full border-4 border-primary/30 flex items-center justify-center">
-                    <div className="h-12 w-12 rounded-full border-4 border-primary border-t-transparent animate-spin-glow" style={{animationDuration: '3s'}} />
+                    <div className="h-12 w-12 rounded-full border-4 border-primary border-t-transparent animate-spin-glow" style={{ animationDuration: '3s' }} />
                   </div>
                 </div>
               </div>
@@ -273,6 +434,16 @@ const features = [
     description:
       "Send your risk reports and negotiation drafts directly to your WhatsApp or Gmail. Keep your legal strategy organized where you communicate with clients.",
   },
+  {
+    icon: (
+      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+      </svg>
+    ),
+    title: "Smart Invoice Builder",
+    description:
+      "A premium CRM-style billing studio. Build, customize, and calculate professional invoices with itemized tax/discounts and export to PDF instantly.",
+  }
 ];
 
 function FeaturesSection() {
@@ -291,7 +462,7 @@ function FeaturesSection() {
             </p>
           </div>
 
-          <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {features.map((feature, i) => (
               <div
                 key={feature.title}
@@ -305,6 +476,278 @@ function FeaturesSection() {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   WHAT'S NEW — Feature highlight of Invoice Builder
+   ═══════════════════════════════════════════════════════════════ */
+function WhatsNewSection() {
+  const { user } = useAuth();
+  const router = useRouter();
+  const [showLoginModal, setShowLoginModal] = useState(false);
+
+  const handleTryNow = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (user) {
+      router.push("/invoice");
+    } else {
+      setShowLoginModal(true);
+    }
+  };
+
+  return (
+    <section id="whats-new" className="relative py-24 lg:py-32 section-recessed overflow-hidden">
+      {/* Background glow and graphics */}
+      <div className="absolute top-[10%] left-[20%] w-[350px] h-[350px] rounded-full bg-primary/5 blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-[15%] right-[10%] w-[450px] h-[450px] rounded-full bg-secondary/5 blur-[120px] pointer-events-none" />
+
+      {/* Login Modal */}
+      {showLoginModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#101320]/80 backdrop-blur-md animate-fade-in no-print">
+          <div className="relative w-full max-w-md p-8 rounded-3xl border border-primary/20 bg-[#1c1f2d]/95 shadow-2xl glass-card text-center space-y-6">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 border border-primary/20">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4edea3" strokeWidth="2.5">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-xl font-bold text-white">Authentication Required</h3>
+              <p className="text-sm text-on-surface-variant leading-relaxed">
+                Log in or create a TermShield account to access the premium Smart Invoice Builder and save your progress.
+              </p>
+            </div>
+            <div className="flex gap-4">
+              <button
+                onClick={() => setShowLoginModal(false)}
+                className="flex-1 btn-secondary py-3 rounded-full text-xs font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowLoginModal(false);
+                  router.push("/login?redirect=/invoice");
+                }}
+                className="flex-1 btn-primary py-3 rounded-full text-xs font-semibold glow-primary"
+              >
+                Log In
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="relative z-10 mx-auto max-w-7xl px-6 lg:px-8">
+        <div className="grid gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+          
+          {/* Left Column: Text description and CTA */}
+          <div className="space-y-6 animate-on-scroll">
+            <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/5 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.15em] text-primary">
+              <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+              What&apos;s New
+            </span>
+            
+            <h2 className="text-display text-3xl font-extrabold sm:text-4xl lg:text-5xl">
+              Meet the <span className="gradient-text-primary">Smart Invoice Builder</span>
+            </h2>
+            
+            <p className="text-base text-on-surface-variant leading-relaxed">
+              A premium, CRM-integrated billing studio built specifically for independent professionals. Track projects, link clients, save reusable service templates, and build itemized invoices with real-time tax breakdown (CGST/SGST/VAT) and profit-margin calculators.
+            </p>
+
+            <ul className="space-y-3.5 text-sm text-[#bbcabf]">
+              <li className="flex items-center gap-2.5">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15 text-primary text-xs font-bold">✓</span>
+                Tabbed Multi-Invoice Management
+              </li>
+              <li className="flex items-center gap-2.5">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15 text-primary text-xs font-bold">✓</span>
+                CRM-Integrated Client & Project Databases
+              </li>
+              <li className="flex items-center gap-2.5">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15 text-primary text-xs font-bold">✓</span>
+                Real-Time Profit Margin & COGS Analytics
+              </li>
+              <li className="flex items-center gap-2.5">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15 text-primary text-xs font-bold">✓</span>
+                Professional PDF Export & JSON Backup
+              </li>
+            </ul>
+
+            <div className="pt-2">
+              <button
+                onClick={handleTryNow}
+                className="btn-primary rounded-full px-8 py-3.5 text-sm font-semibold glow-primary-strong flex items-center gap-2"
+              >
+                Try Invoice Builder Now
+                <span>→</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Right Column: Visual Mock of the Invoice Dashboard */}
+          <div 
+            onClick={handleTryNow}
+            className="relative cursor-pointer group animate-on-scroll-scale"
+          >
+            {/* Ambient hover glow */}
+            <div className="absolute -inset-1 rounded-[2.5rem] bg-gradient-to-r from-primary/20 to-secondary/20 blur-xl opacity-50 group-hover:opacity-100 transition duration-1000" />
+            
+            {/* Main Mock Container */}
+            <div className="relative rounded-[2rem] border border-[#3c4a42]/30 bg-[#1c1f2d]/90 backdrop-blur-2xl p-5 shadow-2xl overflow-hidden glass-card flex gap-4 h-[440px] md:h-[500px]">
+              
+              {/* Dashboard Left Sidebar */}
+              <div className="w-12 h-full flex flex-col items-center py-2 bg-[#101320]/60 rounded-2xl border border-white/[0.03] space-y-4">
+                <div className="h-8 w-8 rounded-xl bg-white/5 flex items-center justify-center text-[#bbcabf] hover:text-white transition">
+                  {/* Grid Menu Icon */}
+                  <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5zM2.5 2a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5zM1 10.5A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5zm6.5.5A1.5 1.5 0 0 1 10.5 9h3a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 13.5zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5z"/></svg>
+                </div>
+                <div className="h-6 w-6 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 font-bold text-xs">+</div>
+                <div className="text-[#bbcabf]/50 hover:text-[#bbcabf] transition">
+                  <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/></svg>
+                </div>
+                <div className="h-px w-6 bg-white/[0.05]" />
+                <div className="text-[#bbcabf]/70 hover:text-white transition">
+                  <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M7 14s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1zm4-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6m-9 0h.5A.5.5 0 0 1 3 8v2a2 2 0 0 0 2 2h3a.5.5 0 0 1 0 1H5a3 3 0 0 1-3-3V8a.5.5 0 0 1 0-1m10-7h-.5a.5.5 0 0 1-.5-.5V.5A.5.5 0 0 1 12 0h1a3 3 0 0 1 3 3v2.5a.5.5 0 0 1-1 0V3a2 2 0 0 0-2-2"/></svg>
+                </div>
+                <div className="text-[#bbcabf]/50">
+                  <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1z"/><path d="M6 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0m3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0m3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/></svg>
+                </div>
+                <div className="text-[#bbcabf]/50">
+                  <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M4 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2zm0 1h8a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1"/></svg>
+                </div>
+              </div>
+
+              {/* Mock Dashboard Main Workspace */}
+              <div className="flex-1 flex flex-col overflow-hidden space-y-4">
+                
+                {/* Mock Header */}
+                <div className="flex items-center justify-between pb-2 border-b border-white/[0.04]">
+                  <div>
+                    <h4 className="text-sm font-bold text-white tracking-wide">Invoices</h4>
+                    <p className="text-[10px] text-[#bbcabf]">123 invoices</p>
+                  </div>
+                  <span className="text-[9px] font-bold bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    Live Demo
+                  </span>
+                </div>
+
+                {/* Mock Metrics Row */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                  
+                  {/* Draft */}
+                  <div className="p-2.5 bg-[#101320]/80 rounded-xl border border-white/[0.02] flex flex-col justify-between">
+                    <span className="text-[8px] text-[#bbcabf] font-bold">Draft</span>
+                    <span className="text-xs font-bold text-white mt-1">$12,253.54</span>
+                    <span className="text-[8px] text-[#bbcabf]/60 mt-0.5">3 Invoices</span>
+                  </div>
+
+                  {/* Unpaid */}
+                  <div className="p-2.5 bg-[#101320]/80 rounded-xl border border-[#d0bcff]/10 flex flex-col justify-between">
+                    <span className="text-[8px] text-[#d0bcff] font-bold">Unpaid</span>
+                    <span className="text-xs font-bold text-[#d0bcff] mt-1">$50,650.56</span>
+                    <span className="text-[8px] text-[#bbcabf]/60 mt-0.5">22 Invoices</span>
+                  </div>
+
+                  {/* Overdue */}
+                  <div className="p-2.5 bg-[#101320]/80 rounded-xl border border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.08)] flex flex-col justify-between relative overflow-hidden">
+                    <div className="absolute inset-0 bg-red-500/[0.02] animate-pulse" />
+                    <span className="text-[8px] text-red-400 font-bold relative z-10">Overdue</span>
+                    <span className="text-xs font-bold text-red-400 mt-1 relative z-10">$36,238.78</span>
+                    <span className="text-[8px] text-[#bbcabf]/60 mt-0.5 relative z-10">6 Invoices</span>
+                  </div>
+
+                  {/* Paid */}
+                  <div className="p-2.5 bg-[#101320]/80 rounded-xl border border-primary/20 flex flex-col justify-between">
+                    <span className="text-[8px] text-primary font-bold">Paid</span>
+                    <span className="text-xs font-bold text-[#4edea3] mt-1">$67,677.90</span>
+                    <span className="text-[8px] text-[#bbcabf]/60 mt-0.5">78 Invoices</span>
+                  </div>
+
+                </div>
+
+                {/* Mock Category Filters */}
+                <div className="flex flex-wrap gap-1.5 py-1">
+                  <span className="text-[8px] px-2 py-0.5 rounded-md font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">All (127)</span>
+                  <span className="text-[8px] px-2 py-0.5 rounded-md font-medium bg-white/5 text-[#bbcabf]">Paid (67)</span>
+                  <span className="text-[8px] px-2 py-0.5 rounded-md font-medium bg-white/5 text-[#bbcabf]">Overdue (24)</span>
+                  <span className="text-[8px] px-2 py-0.5 rounded-md font-medium bg-white/5 text-[#bbcabf]">Unpaid (32)</span>
+                  <span className="text-[8px] px-2 py-0.5 rounded-md font-medium bg-white/5 text-[#bbcabf]">Draft (23)</span>
+                </div>
+
+                {/* Mock Grid List of Invoices */}
+                <div className="flex-1 overflow-y-auto pr-0.5 space-y-2 max-h-[200px] md:max-h-[250px] scrollbar-thin">
+                  
+                  {/* Grid layout for mock invoices */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    
+                    {/* Invoice Card 1 */}
+                    <div className="p-3 bg-[#101320]/50 border border-white/[0.04] rounded-xl flex flex-col justify-between hover:border-primary/20 transition duration-300">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[7px] px-1.5 py-0.2 rounded bg-white/5 text-[#bbcabf]">Final Version</span>
+                        <span className="text-[7px] text-[#bbcabf]/60">#0002</span>
+                      </div>
+                      <p className="text-sm font-extrabold text-white mt-1.5">$75,250</p>
+                      <div className="flex justify-between items-center mt-2 pt-1.5 border-t border-white/[0.02]">
+                        <span className="text-[8px] text-[#bbcabf] font-semibold truncate max-w-[80px]">Ella Grace Johnson</span>
+                        <span className="text-[7px] text-[#bbcabf]/50">07/15/2024</span>
+                      </div>
+                    </div>
+
+                    {/* Invoice Card 2 */}
+                    <div className="p-3 bg-[#101320]/50 border border-white/[0.04] rounded-xl flex flex-col justify-between hover:border-primary/20 transition duration-300">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[7px] px-1.5 py-0.2 rounded bg-white/5 text-[#bbcabf]">Revised Proposal</span>
+                        <span className="text-[7px] text-[#bbcabf]/60">#0003</span>
+                      </div>
+                      <p className="text-sm font-extrabold text-white mt-1.5">$120,500</p>
+                      <div className="flex justify-between items-center mt-2 pt-1.5 border-t border-white/[0.02]">
+                        <span className="text-[8px] text-[#bbcabf] font-semibold truncate max-w-[80px]">Noah William Smith</span>
+                        <span className="text-[7px] text-[#bbcabf]/50">08/22/2024</span>
+                      </div>
+                    </div>
+
+                    {/* Invoice Card 3 */}
+                    <div className="p-3 bg-[#101320]/50 border border-white/[0.04] rounded-xl flex flex-col justify-between hover:border-primary/20 transition duration-300">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[7px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Cost Estimation</span>
+                        <span className="text-[7px] text-[#bbcabf]/60">#0004</span>
+                      </div>
+                      <p className="text-sm font-extrabold text-white mt-1.5">$50,300</p>
+                      <div className="flex justify-between items-center mt-2 pt-1.5 border-t border-white/[0.02]">
+                        <span className="text-[8px] text-[#bbcabf] font-semibold truncate max-w-[80px]">Ava Sophia Lee</span>
+                        <span className="text-[7px] text-[#bbcabf]/50">09/10/2024</span>
+                      </div>
+                    </div>
+
+                    {/* Invoice Card 4 */}
+                    <div className="p-3 bg-[#101320]/50 border border-[#4edea3]/20 bg-[#4edea3]/[0.02] rounded-xl flex flex-col justify-between hover:border-primary/40 transition duration-300">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[7px] px-1.5 py-0.2 rounded bg-primary/10 text-primary border border-primary/20">✓ Service Charge</span>
+                        <span className="text-[7px] text-[#bbcabf]/60">#0007</span>
+                      </div>
+                      <p className="text-sm font-extrabold text-[#4edea3] mt-1.5">$110,200</p>
+                      <div className="flex justify-between items-center mt-2 pt-1.5 border-t border-white/[0.02]">
+                        <span className="text-[8px] text-[#bbcabf] font-semibold truncate max-w-[80px]">Elijah James Davis</span>
+                        <span className="text-[7px] text-[#bbcabf]/50">12/01/2024</span>
+                      </div>
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* Ambient visual overlays */}
+              <div className="absolute bottom-[-10%] right-[-10%] w-[120px] h-[120px] bg-[#4edea3]/10 blur-xl pointer-events-none rounded-full group-hover:bg-[#4edea3]/25 transition-all duration-700" />
+            </div>
+          </div>
+
         </div>
       </div>
     </section>
@@ -428,9 +871,6 @@ function ScanSection() {
    (Imports the real UploadForm component)
    ═══════════════════════════════════════════════════════════════ */
 function UploadFormInline() {
-  // We import the full functional UploadForm here
-  // It's already restyled in its own file
-  const { UploadForm } = require("@/components/UploadForm");
   return <UploadForm />;
 }
 
@@ -438,20 +878,18 @@ function UploadFormInline() {
    ROADMAP SECTION — Upcoming Features with 3D marble cards
    ═══════════════════════════════════════════════════════════════ */
 const upcomingFeatures = [
-  { id: "01", title: "Smart invoice builder", tag: "Freelancer", icon: "📄", roleColor: "text-emerald-300", roleBg: "bg-emerald-500/10" },
-  { id: "02", title: "Payment tracker + overdue alerts", tag: "Freelancer", icon: "💸", roleColor: "text-emerald-300", roleBg: "bg-emerald-500/10" },
-  { id: "03", title: "Freelance rate calculator", tag: "Freelancer", icon: "🧮", roleColor: "text-emerald-300", roleBg: "bg-emerald-500/10" },
-  { id: "04", title: "AI proposal & SOW builder", tag: "Freelancer", icon: "📝", roleColor: "text-emerald-300", roleBg: "bg-emerald-500/10" },
-  { id: "05", title: "Contract vault", tag: "Both sides", icon: "🗄️", roleColor: "text-primary", roleBg: "bg-primary/10" },
-  { id: "06", title: "Client portal", tag: "Client", icon: "🤝", roleColor: "text-blue-300", roleBg: "bg-blue-500/10" },
-  { id: "07", title: "Project milestone tracker", tag: "Both sides", icon: "🏁", roleColor: "text-primary", roleBg: "bg-primary/10" },
-  { id: "08", title: "Freelance tax estimator (India)", tag: "Freelancer", icon: "📊", roleColor: "text-emerald-300", roleBg: "bg-emerald-500/10" },
-  { id: "09", title: "Verified freelancer profile", tag: "Both sides", icon: "✅", roleColor: "text-primary", roleBg: "bg-primary/10" },
-  { id: "10", title: "Dispute documentation kit", tag: "Freelancer", icon: "⚖️", roleColor: "text-emerald-300", roleBg: "bg-emerald-500/10" },
-  { id: "11", title: "Freelance income analytics", tag: "Freelancer", icon: "📈", roleColor: "text-emerald-300", roleBg: "bg-emerald-500/10" },
-  { id: "12", title: "Contract template library", tag: "Both sides", icon: "📚", roleColor: "text-primary", roleBg: "bg-primary/10" },
-  { id: "13", title: "Milestone escrow (light)", tag: "Both sides", icon: "🔒", roleColor: "text-primary", roleBg: "bg-primary/10" },
-  { id: "14", title: "AI contract negotiation coach", tag: "Freelancer", icon: "🤖", roleColor: "text-emerald-300", roleBg: "bg-emerald-500/10" },
+  { id: "01", title: "Freelance rate calculator", tag: "Freelancer", icon: "🧮", roleColor: "text-emerald-300", roleBg: "bg-emerald-500/10" },
+  { id: "02", title: "AI proposal & SOW builder", tag: "Freelancer", icon: "📝", roleColor: "text-emerald-300", roleBg: "bg-emerald-500/10" },
+  { id: "03", title: "Contract vault", tag: "Both sides", icon: "🗄️", roleColor: "text-primary", roleBg: "bg-primary/10" },
+  { id: "04", title: "Client portal", tag: "Client", icon: "🤝", roleColor: "text-blue-300", roleBg: "bg-blue-500/10" },
+  { id: "05", title: "Project milestone tracker", tag: "Both sides", icon: "🏁", roleColor: "text-primary", roleBg: "bg-primary/10" },
+  { id: "06", title: "Freelance tax estimator (India)", tag: "Freelancer", icon: "📊", roleColor: "text-emerald-300", roleBg: "bg-emerald-500/10" },
+  { id: "07", title: "Verified freelancer profile", tag: "Both sides", icon: "✅", roleColor: "text-primary", roleBg: "bg-primary/10" },
+  { id: "08", title: "Dispute documentation kit", tag: "Freelancer", icon: "⚖️", roleColor: "text-emerald-300", roleBg: "bg-emerald-500/10" },
+  { id: "09", title: "Freelance income analytics", tag: "Freelancer", icon: "📈", roleColor: "text-emerald-300", roleBg: "bg-emerald-500/10" },
+  { id: "10", title: "Contract template library", tag: "Both sides", icon: "📚", roleColor: "text-primary", roleBg: "bg-primary/10" },
+  { id: "11", title: "Milestone escrow (light)", tag: "Both sides", icon: "🔒", roleColor: "text-primary", roleBg: "bg-primary/10" },
+  { id: "12", title: "AI contract negotiation coach", tag: "Freelancer", icon: "🤖", roleColor: "text-emerald-300", roleBg: "bg-emerald-500/10" },
 ];
 
 function RoadmapSection() {
@@ -523,7 +961,7 @@ function PricingSection() {
           <div className="animate-on-scroll-scale stagger-1 glass-card rounded-3xl p-8">
             <span className="text-label text-on-surface-variant">Basic Scan</span>
             <div className="mt-3 flex items-baseline gap-2">
-              <span className="text-4xl font-extrabold text-on-surface">₹199</span>
+              <span className="text-4xl font-extrabold text-on-surface">₹49</span>
               <span className="text-sm text-on-surface-variant">/ scan</span>
             </div>
             <p className="mt-3 text-sm text-on-surface-variant leading-6">
@@ -558,7 +996,7 @@ function PricingSection() {
                 <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">POPULAR</span>
               </div>
               <div className="mt-3 flex items-baseline gap-2">
-                <span className="text-4xl font-extrabold text-on-surface">₹499</span>
+                <span className="text-4xl font-extrabold text-on-surface">₹99</span>
                 <span className="text-sm text-on-surface-variant">/ scan</span>
               </div>
               <p className="mt-3 text-sm text-on-surface-variant leading-6">
@@ -690,6 +1128,18 @@ function CTASection() {
    FOOTER
    ═══════════════════════════════════════════════════════════════ */
 function Footer() {
+  const { user } = useAuth();
+  const router = useRouter();
+
+  const handleInvoiceClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (user) {
+      router.push("/invoice");
+    } else {
+      router.push("/login?redirect=/invoice");
+    }
+  };
+
   return (
     <footer className="border-t border-outline-variant/10 py-16">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
@@ -711,10 +1161,10 @@ function Footer() {
             </p>
             <div className="mt-4 flex gap-3">
               <a href="#" className="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-container-high text-on-surface-variant transition hover:bg-primary/10 hover:text-primary">
-                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
               </a>
               <a href="#" className="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-container-high text-on-surface-variant transition hover:bg-primary/10 hover:text-primary">
-                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" /></svg>
               </a>
             </div>
           </div>
@@ -725,6 +1175,14 @@ function Footer() {
             <ul className="space-y-3">
               <li><a href="#features" className="text-sm text-on-surface-variant hover:text-primary transition">Features</a></li>
               <li><a href="#pricing" className="text-sm text-on-surface-variant hover:text-primary transition">Pricing</a></li>
+              <li>
+                <button
+                  onClick={handleInvoiceClick}
+                  className="text-sm text-on-surface-variant hover:text-primary transition text-left"
+                >
+                  Invoice Builder
+                </button>
+              </li>
               <li><a href="#" className="text-sm text-on-surface-variant hover:text-primary transition">Documentation</a></li>
               <li><a href="#" className="text-sm text-on-surface-variant hover:text-primary transition">API Reference</a></li>
             </ul>
@@ -754,7 +1212,7 @@ function Footer() {
 
         <div className="mt-12 border-t border-outline-variant/10 pt-8 text-center">
           <p className="text-xs text-on-surface-variant/60">
-            © 2025 TermShield. A ScubeNet Technologies product. All rights reserved.
+            © 2026 TermShield. forthefreelancersbyafreelancer built by Ditsu Kundu.
           </p>
         </div>
       </div>
@@ -774,6 +1232,7 @@ export default function HomePage() {
       <main>
         <HeroSection />
         <FeaturesSection />
+        <WhatsNewSection />
         <HowItWorksSection />
         <ScanSection />
         <RoadmapSection />

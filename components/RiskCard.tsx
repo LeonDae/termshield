@@ -5,7 +5,7 @@ interface RiskCardProps {
   index?: number;
 }
 
-const severityStyles = {
+export const severityStyles = {
   critical: {
     accent: "accent-critical",
     bg: "bg-error/5",
@@ -26,11 +26,18 @@ const severityStyles = {
   },
 };
 
-const categoryLabels: Record<string, string> = {
+export const categoryLabels: Record<string, string> = {
   ip: "Intellectual Property",
   payment: "Payment Terms",
   "non-compete": "Non-Compete",
   termination: "Termination",
+};
+
+export const categoryIcons: Record<string, string> = {
+  ip: "⚖️",
+  payment: "💸",
+  "non-compete": "💼",
+  termination: "🚪",
 };
 
 export function RiskCard({ risk, index = 0 }: RiskCardProps) {
@@ -39,40 +46,53 @@ export function RiskCard({ risk, index = 0 }: RiskCardProps) {
 
   return (
     <div
-      className={`glass-card rounded-2xl p-5 ${style.accent} animate-slide-up ${delayClass} transition-all duration-300`}
+      className={`glass-card rounded-2xl p-6 ${style.accent} animate-slide-up ${delayClass} transition-all duration-300 flex flex-col justify-between relative overflow-hidden`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div>
+      <div>
+        <div className="flex items-center justify-between border-b border-outline-variant/10 pb-3 mb-4">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">{categoryIcons[risk.category] || "📄"}</span>
+            <h3 className="text-base font-semibold text-on-surface">
+              {categoryLabels[risk.category] ?? risk.category}
+            </h3>
+          </div>
           <span
             className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider ${style.badge} ${risk.severity === 'critical' ? 'animate-glow' : ''}`}
           >
             {risk.severity}
           </span>
-          <h3 className="mt-2 text-sm font-semibold text-on-surface">
-            {categoryLabels[risk.category] ?? risk.category}
-          </h3>
         </div>
-        {risk.confidence !== undefined && (
-          <span className="text-xs text-on-surface-variant">
-            {Math.round(risk.confidence)}% conf.
-          </span>
-        )}
+
+        <div className="space-y-4">
+          {/* Monospace/Serif Document Clause */}
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant/70 mb-1.5 flex items-center gap-1.5">
+              <span>📄</span> Contract Clause
+            </h4>
+            <blockquote className="rounded-xl bg-surface-container-lowest border border-outline-variant/10 p-3.5 text-xs italic font-serif leading-relaxed text-on-surface-variant/90 shadow-inner">
+              &ldquo;{risk.clauseText}&rdquo;
+            </blockquote>
+          </div>
+
+          {/* Risk Explanation */}
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant/70 mb-1.5 flex items-center gap-1.5">
+              <span>⚠️</span> Risk Analysis
+            </h4>
+            <p className="text-sm leading-relaxed text-on-surface/90">
+              {risk.explanation}
+            </p>
+          </div>
+        </div>
       </div>
 
-      <blockquote className={`mt-3 border-l-2 border-outline-variant/30 pl-3 text-xs italic leading-5 text-on-surface-variant animate-text-reveal ${delayClass}`}>
-        &ldquo;{risk.clauseText}&rdquo;
-      </blockquote>
-
-      <p className="mt-3 text-sm leading-6 text-on-surface/80">
-        {risk.explanation}
-      </p>
-
+      {/* Suggested Fix Message */}
       {risk.fixMessage && (
-        <div className={`mt-3 rounded-xl bg-surface-container-lowest/40 border border-outline-variant/10 p-3 animate-slide-up ${delayClass}`}>
-          <p className="text-label text-primary/70">
-            Suggested fix message
-          </p>
-          <p className="mt-1 text-sm leading-6 text-on-surface/80">
+        <div className="rounded-xl bg-primary/5 border border-primary/20 p-4 mt-4 shadow-sm animate-slide-up">
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-primary mb-1.5 flex items-center gap-1.5">
+            <span>💡</span> Suggested Negotiation Edit
+          </h4>
+          <p className="text-sm leading-relaxed text-on-surface/90 font-medium">
             {risk.fixMessage}
           </p>
         </div>

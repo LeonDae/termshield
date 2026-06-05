@@ -5,8 +5,8 @@
 @tailwind utilities;
 
 /* ═══════════════════════════════════════════════════════════════
-   1. DESIGN TOKENS — "ScubeNet Technologies"
-   Extracted from Stitch "AI Contract Shield" dark theme
+   1. DESIGN TOKENS — TermShield
+   Dark theme tokens for the AI Contract Shield interface
    ═══════════════════════════════════════════════════════════════ */
 
 :root {
@@ -607,3 +607,258 @@ body {
   opacity: 1;
   transform: rotateY(0) translateZ(0) translateX(0);
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   11. PRINT STYLES FOR PDF EXPORT
+   ═══════════════════════════════════════════════════════════════ */
+
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 12pt;
+    line-height: 1.5;
+  }
+
+  /* Hide interactive/page elements */
+  .no-print, nav, footer, button, a[href^="/"] {
+    display: none !important;
+  }
+
+  /* Reset layout constraints for paper */
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  .glass-card {
+    background: #ffffff !important;
+    color: #000000 !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    margin-bottom: 20px !important;
+    page-break-inside: avoid;
+  }
+
+  /* Force light-colored backgrounds for blockquotes / sub-cards to show in print */
+  .bg-surface-container-lowest,
+  .bg-primary\/5 {
+    background-color: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+
+  /* Keep border accents high contrast */
+  .accent-critical {
+    border-left: 4px solid #ef4444 !important;
+  }
+
+  .accent-important {
+    border-left: 4px solid #f59e0b !important;
+  }
+
+  .accent-safe {
+    border-left: 4px solid #10b981 !important;
+  }
+
+  /* Overwrite color text for readability on white paper */
+  .text-on-surface,
+  .text-on-surface-variant,
+  .text-primary,
+  .text-secondary,
+  .text-error {
+    color: #0f172a !important;
+  }
+
+  blockquote {
+    color: #334155 !important;
+    border-color: #cbd5e1 !important;
+  }
+
+  /* Layout tweaks for printed dashboard grid */
+  .grid {
+    display: block !important;
+  }
+
+  .grid > * {
+    margin-bottom: 1.5rem !important;
+    width: 100% !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   12. NAV LIQUID GLASS BUBBLE
+   ═══════════════════════════════════════════════════════════════ */
+
+.nav-liquid-bubble {
+  position: absolute;
+  top: 50%;
+  height: calc(100% - 6px);
+  border-radius: 9999px;
+  transform: translateY(-50%);
+  pointer-events: none;
+  z-index: 1;
+
+  /* Transparent glass fill */
+  background: linear-gradient(
+    135deg,
+    rgba(78, 222, 163, 0.18) 0%,
+    rgba(78, 222, 163, 0.08) 100%
+  );
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+
+  /* Luminous border */
+  border: 1px solid rgba(78, 222, 163, 0.25);
+
+  /* Inner refraction highlight + outer glow */
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.15),
+    inset 0 -1px 1px rgba(78, 222, 163, 0.06),
+    0 0 12px rgba(78, 222, 163, 0.12),
+    0 2px 8px rgba(0, 0, 0, 0.15);
+
+  /* Offset left/width timings: bubble stretches mid-flight then snaps */
+  transition:
+    left 0.38s cubic-bezier(0.25, 0.1, 0.25, 1),
+    width 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.2s ease;
+
+  /* GPU compositing for buttery frames */
+  will-change: left, width;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   LIGHT THEME OVERRIDES
+   Composed of warm white, vivid orange and matching earthy/amber tones
+   ═══════════════════════════════════════════════════════════════ */
+.light-theme {
+  --background: #faf8f5;
+  --surface: #ffffff;
+  --surface-dim: #f5f2ed;
+  --surface-bright: #ffffff;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #f5f2ed;
+  --surface-container: #ebe6df;
+  --surface-container-high: #ded9d0;
+  --surface-container-highest: #d1cbc0;
+  --surface-variant: #ded9d0;
+
+  /* Primary — Orange */
+  --primary: #f97316;
+  --primary-container: #ffedd5;
+  --primary-fixed: #ffedd5;
+  --primary-fixed-dim: #ea580c;
+  --on-primary: #ffffff;
+  --on-primary-container: #431407;
+
+  /* Secondary — Golden Amber */
+  --secondary: #d97706;
+  --secondary-container: #fef3c7;
+  --on-secondary: #ffffff;
+  --on-secondary-container: #451a03;
+
+  /* Tertiary — Warm Sienna */
+  --tertiary: #c2410c;
+  --tertiary-container: #ffedd5;
+
+  /* Neutrals */
+  --on-background: #1c1917;
+  --on-surface: #1c1917;
+  --on-surface-variant: #57534e;
+  --outline: #a8a29e;
+  --outline-variant: #e7e5e4;
+  --inverse-surface: #1c1917;
+  --inverse-on-surface: #f5f5f4;
+  --inverse-primary: #f97316;
+
+  /* Error */
+  --error: #dc2626;
+  --error-container: #fee2e2;
+  --on-error: #ffffff;
+
+  /* Misc */
+  --surface-tint: #f97316;
+}
+
+/* Glassmorphism Overrides for Light Mode */
+.light-theme .glass {
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(249, 115, 22, 0.15);
+}
+
+.light-theme .glass-heavy {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(249, 115, 22, 0.18);
+}
+
+.light-theme .glass-card {
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(249, 115, 22, 0.12);
+  box-shadow:
+    inset 0 1px 0 0 rgba(249, 115, 22, 0.08),
+    0 20px 60px rgba(120, 80, 50, 0.05);
+}
+
+.light-theme .glass-card:hover {
+  border-color: rgba(249, 115, 22, 0.25);
+  box-shadow:
+    inset 0 1px 0 0 rgba(249, 115, 22, 0.15),
+    0 25px 70px rgba(120, 80, 50, 0.08),
+    0 0 40px rgba(249, 115, 22, 0.04);
+}
+
+/* Glow effects in light mode */
+.light-theme .glow-primary,
+.light-theme .shadow-glow-primary {
+  box-shadow: 0 0 20px rgba(249, 115, 22, 0.15), 0 0 60px rgba(249, 115, 22, 0.05) !important;
+}
+
+/* Smooth theme transitions */
+body,
+header,
+main,
+section,
+.glass,
+.glass-heavy,
+.glass-card,
+h1, h2, h3, h4, p, span, a, button, svg, input, label, select, textarea {
+  transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+              border-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+              color 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+              fill 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+              stroke 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+              box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Readability overrides for light mode (ensures no unreadable white/light fonts on white card/bg) */
+.light-theme .text-emerald-300 {
+  color: #047857 !important;
+}
+
+.light-theme .text-red-300 {
+  color: #b91c1c !important;
+}
+
+.light-theme .text-blue-300 {
+  color: #1d4ed8 !important;
+}
+
+.light-theme .text-yellow-300 {
+  color: #b45309 !important;
+}
+
+.light-theme .gradient-text-primary {
+  background: linear-gradient(135deg, #ea580c 0%, #f97316 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.light-theme .btn-secondary:hover {
+  background: rgba(249, 115, 22, 0.08);
+}
+

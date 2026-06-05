@@ -63,7 +63,7 @@ function mapScanRow(row: ScanRow, risks: RiskRow[] = []): Scan {
   };
 }
 
-export async function createScanRecord(input: CreateScanInput): Promise<Scan> {
+export async function createScanRecord(input: CreateScanInput, userId?: string): Promise<Scan> {
   if (!hasSupabaseServerConfig()) {
     throw new Error(getScanSetupMessage());
   }
@@ -78,6 +78,7 @@ export async function createScanRecord(input: CreateScanInput): Promise<Scan> {
       filename,
       plan_type: input.planType,
       status: "pending",
+      user_id: userId || null,
     })
     .select("id, filename, status, confidence_score, plan_type")
     .single();
