@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
+import { BrandLogo } from "@/components/BrandLogo";
 
 interface RiskSummaryItem {
   category: string;
@@ -29,6 +30,37 @@ export default function HistoryPage() {
   const [history, setHistory] = useState<ScanHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [clearing, setClearing] = useState(false);
+
+  const handleClearHistory = async () => {
+    if (!session) return;
+    if (!window.confirm("Are you sure you want to clear your scan history? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      setClearing(true);
+      setError("");
+      const res = await fetch("/api/scan/history", {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to clear scan history.");
+      }
+
+      setHistory([]);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Failed to clear history.");
+    } finally {
+      setClearing(false);
+    }
+  };
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -83,15 +115,8 @@ export default function HistoryPage() {
       {/* Header */}
       <header className="glass-heavy sticky top-0 z-40 transition-colors duration-500" style={{ borderBottom: '1px solid var(--outline-variant)' }}>
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary/20">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-primary">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
-            </div>
-            <span className="text-lg font-bold tracking-tight text-on-surface">
-              Term<span className="text-primary">Shield</span>
-            </span>
+          <Link href="/" className="group">
+            <BrandLogo iconSize={32} textClassName="text-lg font-extrabold tracking-wider text-white font-sans" />
           </Link>
           <div className="flex items-center gap-4">
             <span className="text-sm text-primary font-medium">
@@ -106,11 +131,22 @@ export default function HistoryPage() {
 
       {/* Content */}
       <main className="flex-1 mx-auto w-full max-w-5xl px-6 py-12 lg:px-8">
-        <div className="mb-10">
-          <h1 className="text-3xl font-bold text-on-surface">Scan History</h1>
-          <p className="mt-2 text-on-surface-variant">
-            Review past scans, confidence evaluations, and exported rectifications.
-          </p>
+        <div className="mb-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-on-surface">Scan History</h1>
+            <p className="mt-2 text-on-surface-variant">
+              Review flagged risks and faults from your past contract scans.
+            </p>
+          </div>
+          {history.length > 0 && (
+            <button
+              onClick={handleClearHistory}
+              disabled={clearing}
+              className="self-start sm:self-auto rounded-full bg-error/10 hover:bg-error/20 border border-error/20 px-5 py-2.5 text-xs font-semibold text-error transition-all"
+            >
+              {clearing ? "Clearing..." : "Clear History"}
+            </button>
+          )}
         </div>
 
         {error && (
@@ -179,19 +215,16 @@ export default function HistoryPage() {
                           </span>
                         )}
                         {severityCounts.important > 0 && (
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-warning bg-warning/10 border border-warning/20 px-2.5 py-0.5 rounded-full">
-                            <span className="h-1.5 w-1.5 rounded-full bg-warning"></span>
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-yellow-300 bg-yellow-500/10 border border-yellow-500/20 px-2.5 py-0.5 rounded-full">
+                            <span className="h-1.5 w-1.5 rounded-full bg-yellow-500"></span>
                             {severityCounts.important} Important
                           </span>
                         )}
-                        {severityCounts.safe > 0 && (
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary bg-primary/10 border border-primary/20 px-2.5 py-0.5 rounded-full">
-                            <span className="h-1.5 w-1.5 rounded-full bg-primary"></span>
-                            {severityCounts.safe} Safe
+                      {summaryItems.length === 0 && (
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                            Clean — No Faults
                           </span>
-                        )}
-                        {summaryItems.length === 0 && (
-                          <span className="text-xs text-on-surface-variant">No risks identified.</span>
                         )}
                       </div>
                     </div>

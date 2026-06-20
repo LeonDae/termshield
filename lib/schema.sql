@@ -93,6 +93,9 @@ create policy "Users can view risks for their own scans" on public.risks
 create policy "Users can view their own scan history" on public.scan_history
   for select using (auth.uid() = user_id);
 
+create policy "Users can view their own profile" on public.users
+  for select using (auth.uid() = id);
+
 -- Trigger functions to sync auth.users to public.users
 create or replace function public.handle_new_user()
 returns trigger as $$

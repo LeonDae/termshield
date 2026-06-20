@@ -1,9 +1,7 @@
-import "server-only";
-
 import { z } from "zod";
 
 import { createSupabaseServerClient, hasSupabaseServerConfig } from "@/lib/supabase";
-import type { Risk, Scan } from "@/types";
+import type { Risk, Scan, DetectionMethod, RiskCategory } from "@/types";
 
 export const createScanInputSchema = z.object({
   filename: z
@@ -34,6 +32,15 @@ type RiskRow = {
   explanation: string | null;
   fix_message: string | null;
   confidence: number | null;
+  // New v2 columns (nullable for backward compat)
+  risk_type: string | null;
+  evidence_snippet: string | null;
+  impact: string | null;
+  suggested_rewrite: string | null;
+  detection_method: string | null;
+  clause_id: string | null;
+  page_number: number | null;
+  section_title: string | null;
 };
 
 export function getScanSetupMessage() {
@@ -43,12 +50,21 @@ export function getScanSetupMessage() {
 function mapRiskRow(row: RiskRow): Risk {
   return {
     id: row.id,
-    category: row.category,
+    category: (row.risk_type ?? row.category) as RiskCategory,
     severity: row.severity,
     clauseText: row.clause_text ?? "",
     explanation: row.explanation ?? "",
-    fixMessage: row.fix_message ?? undefined,
+    fixMessage: row.suggested_rewrite ?? row.fix_message ?? undefined,
     confidence: row.confidence ?? undefined,
+    // New v2 fields
+    riskType: (row.risk_type ?? row.category) as RiskCategory,
+    evidenceSnippet: row.evidence_snippet ?? undefined,
+    impact: row.impact ?? undefined,
+    suggestedRewrite: row.suggested_rewrite ?? undefined,
+    detectionMethod: (row.detection_method ?? undefined) as DetectionMethod | undefined,
+    clauseId: row.clause_id ?? undefined,
+    pageNumber: row.page_number ?? undefined,
+    sectionTitle: row.section_title ?? undefined,
   };
 }
 
@@ -112,7 +128,7 @@ export async function getScanRecordById(id: string): Promise<Scan | null> {
 
   const { data: risks, error: risksError } = await supabase
     .from("risks")
-    .select("id, category, severity, clause_text, explanation, fix_message, confidence")
+    .select("id, category, severity, clause_text, explanation, fix_message, confidence, risk_type, evidence_snippet, impact, suggested_rewrite, detection_method, clause_id, page_number, section_title")
     .eq("scan_id", id)
     .order("created_at", { ascending: true });
 

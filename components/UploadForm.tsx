@@ -1,26 +1,44 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useRef, useTransition, useCallback } from "react";
+import { useState, useRef, useTransition, useCallback, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
-type PlanType = "basic" | "premium";
+type PlanType = "free" | "basic" | "premium";
+
+const LOADING_STEPS = [
+  "Securing server connection...",
+  "Uploading contract PDF...",
+  "Extracting text content...",
+  "Running compliance rules...",
+  "Launching semantic retrievers...",
+  "Connecting to AI scanning engine...",
+  "Preparing analysis vault...",
+];
 
 const planCopy: Record<PlanType, { price: string; description: string }> = {
+  free: {
+    price: "₹0",
+    description: "Risk scan across 4 core categories.",
+  },
   basic: {
     price: "₹49",
-    description: "Risk scan across 4 categories.",
+    description: "Risk scan across 8 categories.",
   },
   premium: {
     price: "₹99",
-    description: "Risk scan + fix messages + send.",
+    description: "All 10 categories + fix messages + send.",
   },
 };
 
-export function UploadForm() {
+interface UploadFormProps {
+  showFreePlan?: boolean;
+}
+
+export function UploadForm({ showFreePlan = false }: UploadFormProps) {
   const router = useRouter();
   const { session } = useAuth();
-  const [planType, setPlanType] = useState<PlanType>("premium");
+  const [planType, setPlanType] = useState<PlanType>(showFreePlan ? "free" : "premium");
   const [contractText, setContractText] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [mode, setMode] = useState<"pdf" | "text">("pdf");
@@ -29,8 +47,22 @@ export function UploadForm() {
   const [isNavigating, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(0);
 
   const isBusy = isSubmitting || isNavigating;
+
+  useEffect(() => {
+    if (!isBusy) {
+      setLoadingStep(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setLoadingStep((prev) => (prev < LOADING_STEPS.length - 1 ? prev + 1 : prev));
+    }, 1500);
+
+    return () => clearInterval(interval);
+  }, [isBusy]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -92,7 +124,7 @@ export function UploadForm() {
         // PDF upload — multipart form data
         const formData = new FormData();
         formData.append("file", selectedFile);
-        formData.append("planType", planType);
+        formData.append("planType", planType === "free" ? "basic" : planType);
 
         response = await fetch("/api/scan/upload", {
           method: "POST",
@@ -109,7 +141,7 @@ export function UploadForm() {
           },
           body: JSON.stringify({
             contractText,
-            planType,
+            planType: planType === "free" ? "basic" : planType,
           }),
         });
       }
@@ -135,6 +167,69 @@ export function UploadForm() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  if (isBusy) {
+    return (
+      <section className="glass-card rounded-3xl p-8 relative overflow-hidden animate-fade-in text-center min-h-[380px] flex flex-col items-center justify-center">
+        {/* Background glow effects */}
+        <div className="absolute -top-24 -left-24 w-48 h-48 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -right-24 w-48 h-48 rounded-full bg-secondary/10 blur-3xl pointer-events-none" />
+
+        <div className="scan-animation-container w-full flex flex-col items-center justify-center py-6">
+          {/* Floating particles */}
+          <div className="scan-particles">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="scan-particle" />
+            ))}
+          </div>
+
+          {/* Document silhouette with scan line */}
+          <div className="scan-document mb-6">
+            <div className="scan-doc-fold" />
+            <div className="scan-line" />
+            <div className="scan-line-glow" />
+            <div className="scan-doc-lines">
+              {[...Array(10)].map((_, i) => (
+                <div key={i} className="scan-doc-line" />
+              ))}
+            </div>
+          </div>
+
+          {/* Title and description */}
+          <div className="space-y-3 max-w-sm">
+            <h2 className="text-xl font-bold text-on-surface tracking-tight">
+              Analyzing Contract...
+            </h2>
+            
+            {/* Dynamic Loading Step */}
+            <div className="h-6 flex items-center justify-center">
+              <p className="text-sm font-semibold text-primary transition-all duration-300 flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                </span>
+                {LOADING_STEPS[loadingStep]}
+              </p>
+            </div>
+
+            <p className="text-xs text-on-surface-variant leading-relaxed px-4">
+              Our hybrid AI pipeline is parsing and segmenting your contract. Please do not close this window.
+            </p>
+          </div>
+
+          {/* Progress bar simulation */}
+          <div className="w-full max-w-xs mt-6 px-4">
+            <div className="h-1.5 w-full bg-surface-container-high rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-primary-container via-primary to-primary-fixed rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${Math.min(95, (loadingStep + 1) * 15)}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+    );
   }
 
   return (
@@ -273,8 +368,8 @@ export function UploadForm() {
         )}
 
         {/* Plan selector */}
-        <div className="grid gap-3 sm:grid-cols-2">
-          {(["basic", "premium"] as const).map((plan) => {
+        <div className={`grid gap-3 ${showFreePlan ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+          {(showFreePlan ? (["free", "basic", "premium"] as const) : (["basic", "premium"] as const)).map((plan) => {
             const isSelected = planType === plan;
 
             return (
@@ -293,7 +388,7 @@ export function UploadForm() {
                     isSelected ? "text-primary" : "text-on-surface"
                   }`}
                 >
-                  {plan === "basic" ? "Basic" : "Premium"} — {planCopy[plan].price}
+                  {plan === "free" ? "Free" : plan === "basic" ? "Basic" : "Premium"} — {planCopy[plan].price}
                 </span>
                 <span
                   className={`mt-1 block text-sm ${

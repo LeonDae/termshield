@@ -1,8 +1,16 @@
 {
   "crons": [
     {
-      "path": "/api/your-cron-endpoint",
+      "path": "/api/cron/cleanup",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/retry-scans",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/weekly-digest",
+      "schedule": "30 3 * * 1"
     }
   ]
 }

@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { BrandLogo } from "@/components/BrandLogo";
 
 export default function SignupPage() {
   const router = useRouter();
+  const containerRef = useRef<HTMLDivElement>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -26,47 +28,43 @@ export default function SignupPage() {
     setError("");
     setSuccessMessage("");
 
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: name,
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: name,
+          },
         },
-      },
-    });
+      });
 
-    if (signUpError) {
-      setError(signUpError.message);
-      setLoading(false);
-    } else {
-      setSuccessMessage("Account created successfully! Redirecting...");
+      if (error) throw error;
+
+      setSuccessMessage("Signup successful! Please check your email for a verification link.");
       setTimeout(() => {
-        router.push("/");
-      }, 1500);
+        router.push("/login");
+      }, 3000);
+    } catch (err: any) {
+      setError(err.message || "Something went wrong.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center overflow-hidden mesh-gradient-hero">
+    <div className="relative min-h-screen flex items-center justify-center overflow-hidden mesh-gradient-hero page-transition-fade">
       <div className="relative z-10 w-full max-w-md mx-auto px-6">
         {/* Brand */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 transition-colors group-hover:bg-primary/20">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-primary">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
-            </div>
-            <span className="text-xl font-bold tracking-tight text-on-surface">
-              Term<span className="text-primary">Shield</span>
-            </span>
+          <Link href="/" className="inline-block group">
+            <BrandLogo iconSize={36} textClassName="text-2xl font-extrabold tracking-wider text-white font-sans" />
           </Link>
           <p className="mt-2 text-sm text-on-surface-variant">Protect Your Next Contract</p>
         </div>
 
         {/* Signup card */}
-        <div className="glass-card rounded-3xl p-8">
+        <div ref={containerRef} className="glass-card rounded-3xl p-8 page-transition-enter">
           <h1 className="text-2xl font-bold text-on-surface">Create Account</h1>
           <p className="mt-1 text-sm text-on-surface-variant">
             Join the frontier of TermShield.
@@ -166,7 +164,7 @@ export default function SignupPage() {
 
         {/* Footer */}
         <p className="mt-8 text-center text-xs text-on-surface-variant/50">
-          © 2026 TermShield. forthefreelancersbyafreelancer built by Ditsu Kundu.
+          © 2026 TermShield. Built for freelancers, by freelancers.
         </p>
       </div>
     </div>

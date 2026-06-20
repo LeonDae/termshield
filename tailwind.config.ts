@@ -67,9 +67,9 @@ const config: Config = {
       },
       boxShadow: {
         glass: "0 20px 60px rgba(0, 0, 0, 0.25)",
-        "glass-hover": "0 25px 70px rgba(0, 0, 0, 0.3), 0 0 40px rgba(78, 222, 163, 0.04)",
-        "glow-primary": "0 0 20px rgba(78, 222, 163, 0.15), 0 0 60px rgba(78, 222, 163, 0.05)",
-        "glow-strong": "0 0 30px rgba(78, 222, 163, 0.25), 0 0 80px rgba(78, 222, 163, 0.1)",
+        "glass-hover": "0 25px 70px rgba(0, 0, 0, 0.3), 0 0 40px rgba(59, 130, 246, 0.04)",
+        "glow-primary": "0 0 20px rgba(59, 130, 246, 0.15), 0 0 60px rgba(59, 130, 246, 0.05)",
+        "glow-strong": "0 0 30px rgba(59, 130, 246, 0.25), 0 0 80px rgba(59, 130, 246, 0.1)",
         ambient: "0 20px 40px rgba(16, 19, 32, 0.06)",
       },
       animation: {

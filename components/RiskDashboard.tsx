@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ConfidenceBar } from "@/components/ConfidenceBar";
-import { RiskCard } from "@/components/RiskCard";
+import { RiskCard, categoryLabels, categoryIcons, severityStyles } from "@/components/RiskCard";
 import { ShareModal } from "@/components/ShareModal";
 import type { Scan } from "@/types";
 
@@ -10,27 +10,32 @@ interface RiskDashboardProps {
   scan: Scan;
 }
 
+const severityLabels: Record<string, string> = {
+  critical: "Critical Risk 🔴",
+  important: "Important 🟡",
+  safe: "Safe 🟢",
+};
+
+const severityBadgeClass: Record<string, string> = {
+  critical: "border-error/30 text-error bg-error/5",
+  important: "border-yellow-500/30 text-yellow-300 bg-yellow-500/5",
+  safe: "border-emerald-500/30 text-emerald-400 bg-emerald-500/5",
+};
+
 export function RiskDashboard({ scan }: RiskDashboardProps) {
   const [isShareOpen, setIsShareOpen] = useState(false);
 
-  const categories = [
-    { key: "ip", label: "Intellectual Property", icon: "⚖️" },
-    { key: "payment", label: "Payment Terms", icon: "💸" },
-    { key: "non-compete", label: "Non-Compete", icon: "💼" },
-    { key: "termination", label: "Termination", icon: "🚪" }
-  ];
+  // Dynamically build categories from the risks present in this scan
+  const categories = scan.risks.map((risk) => ({
+    key: risk.category,
+    label: categoryLabels[risk.category] ?? risk.category,
+    icon: categoryIcons[risk.category] ?? "📄",
+  }));
 
-  const severityLabels = {
-    critical: "Critical Risk 🔴",
-    important: "Important 🟡",
-    safe: "Safe 🟢"
-  };
-
-  const severityBadgeClass = {
-    critical: "border-error/30 text-error bg-error/5",
-    important: "border-yellow-500/30 text-yellow-300 bg-yellow-500/5",
-    safe: "border-primary/30 text-primary bg-primary/5"
-  };
+  // Deduplicate categories (in case multiple risks share the same category)
+  const uniqueCategories = categories.filter(
+    (cat, i, arr) => arr.findIndex((c) => c.key === cat.key) === i
+  );
 
   return (
     <section className="space-y-6">
@@ -60,18 +65,26 @@ export function RiskDashboard({ scan }: RiskDashboardProps) {
             >
               <span>📄</span> Export PDF
             </button>
-            <button
-              onClick={() => setIsShareOpen(true)}
-              className="flex items-center justify-center gap-2 rounded-full btn-primary px-6 py-3 text-sm font-semibold hover:scale-[1.02] shadow-glow-primary"
-            >
-              <span>📧</span> Send Counter Offer
-            </button>
+            {scan.planType === "premium" && (
+              <button
+                onClick={() => setIsShareOpen(true)}
+                className="flex items-center justify-center gap-2 rounded-full btn-primary px-6 py-3 text-sm font-semibold hover:scale-[1.02] shadow-glow-primary"
+              >
+                <span>📧</span> Send Counter Offer
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Quick status summary grid */}
-        <div className="mt-8 grid gap-4 grid-cols-2 lg:grid-cols-4 border-t border-outline-variant/10 pt-6">
-          {categories.map((cat) => {
+        {/* Quick status summary grid — dynamic based on risks found */}
+        <div className={`mt-8 grid gap-4 border-t border-outline-variant/10 pt-6 ${
+          uniqueCategories.length <= 4
+            ? "grid-cols-2 lg:grid-cols-4"
+            : uniqueCategories.length <= 6
+            ? "grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
+            : "grid-cols-2 lg:grid-cols-4 xl:grid-cols-5"
+        }`}>
+          {uniqueCategories.map((cat) => {
             const risk = scan.risks.find((r) => r.category === cat.key);
             const severity = risk?.severity || "safe";
             return (
@@ -102,7 +115,12 @@ export function RiskDashboard({ scan }: RiskDashboardProps) {
       {/* Risks Grid */}
       <div className="grid gap-6 md:grid-cols-2">
         {scan.risks.map((risk, index) => (
-          <RiskCard key={risk.id} risk={risk} index={index} />
+          <RiskCard
+            key={risk.id}
+            risk={risk}
+            index={index}
+            isPremium={scan.planType === "premium"}
+          />
         ))}
       </div>
 

@@ -1,19 +1,22 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, Suspense, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { BrandLogo } from "@/components/BrandLogo";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") || "/";
+  const redirect = searchParams.get("redirect") || "/dashboard";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,12 +32,19 @@ function LoginForm() {
       setError(signInError.message);
       setLoading(false);
     } else {
-      router.push(redirect);
+      // Play exit animation before navigating
+      if (containerRef.current) {
+        containerRef.current.classList.remove('page-transition-enter');
+        containerRef.current.classList.add('page-transition-exit');
+      }
+      setTimeout(() => {
+        router.push(redirect);
+      }, 350);
     }
   };
 
   return (
-    <div className="glass-card rounded-3xl p-8">
+    <div ref={containerRef} className="glass-card rounded-3xl p-8 page-transition-enter">
       <h1 className="text-2xl font-bold text-on-surface">Welcome Back</h1>
       <p className="mt-1 text-sm text-on-surface-variant">
         Enter your credentials to access your secure vault.
@@ -112,21 +122,14 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="relative min-h-screen flex items-center justify-center overflow-hidden mesh-gradient-hero">
+    <div className="relative min-h-screen flex items-center justify-center overflow-hidden mesh-gradient-hero page-transition-fade">
       <div className="relative z-10 w-full max-w-md mx-auto px-6">
         {/* Brand */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 transition-colors group-hover:bg-primary/20">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-primary">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
-            </div>
-            <span className="text-xl font-bold tracking-tight text-on-surface">
-              Term<span className="text-primary">Shield</span>
-            </span>
+          <Link href="/" className="inline-block group">
+            <BrandLogo iconSize={36} textClassName="text-2xl font-extrabold tracking-wider text-white font-sans" />
           </Link>
-          <p className="mt-2 text-sm text-on-surface-variant">forthefreelancersbyafreelancer built by Ditsu Kundu.</p>
+          <p className="mt-2 text-sm text-on-surface-variant">Built for freelancers, by freelancers.</p>
         </div>
 
         {/* Suspense Wrapped Login Form */}
@@ -140,7 +143,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <p className="mt-8 text-center text-xs text-on-surface-variant/50">
-          © 2026 TermShield. forthefreelancersbyafreelancer built by Ditsu Kundu.
+          © 2026 TermShield. Built for freelancers, by freelancers.
         </p>
       </div>
     </div>

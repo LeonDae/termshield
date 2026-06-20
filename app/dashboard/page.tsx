@@ -5,9 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { UploadForm } from "@/components/UploadForm";
+import { supabase } from "@/lib/supabaseClient";
 import { BrandLogo } from "@/components/BrandLogo";
-
-
 
 /* ═══════════════════════════════════════════════════════════════
    SCROLL ANIMATION HOOK
@@ -29,7 +28,7 @@ function useScrollAnimations() {
     );
 
     const elements = document.querySelectorAll(
-      ".animate-on-scroll, .animate-on-scroll-scale, .animate-on-scroll-left, .animate-on-scroll-right, .animate-turn-in-left, .animate-turn-in-right"
+      ".animate-on-scroll, .animate-on-scroll-scale, .animate-on-scroll-left, .animate-on-scroll-right"
     );
     elements.forEach((el) => observer.observe(el));
 
@@ -37,12 +36,12 @@ function useScrollAnimations() {
   }, []);
 }
 
-const SECTIONS = ["features", "how-it-works", "pricing", "testimonials"];
+const DASHBOARD_SECTIONS = ["features", "whats-new", "workspace", "scan", "roadmap", "pricing", "testimonials"];
 
 /* ═══════════════════════════════════════════════════════════════
-   NAV — Floating glassmorphic navbar
+   NAV — Floating glassmorphic navbar (without History link)
    ═══════════════════════════════════════════════════════════════ */
-function FloatingNav() {
+function DashboardNav() {
   const navRef = useRef<HTMLElement>(null);
   const tabContainerRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
@@ -80,8 +79,7 @@ function FloatingNav() {
       { threshold: 0.25, rootMargin: "-25% 0px -45% 0px" }
     );
 
-    const observeIds = ["features", "whats-new", "how-it-works", "pricing", "testimonials"];
-    observeIds.forEach((id) => {
+    DASHBOARD_SECTIONS.forEach((id) => {
       const el = document.getElementById(id);
       if (el) observer.observe(el);
     });
@@ -90,7 +88,7 @@ function FloatingNav() {
   }, []);
 
   const measureTabs = useCallback(() => {
-    const activeIndex = SECTIONS.indexOf(activeSection);
+    const activeIndex = DASHBOARD_SECTIONS.indexOf(activeSection);
     const activeLink = linkRefs.current[activeIndex];
     const container = tabContainerRef.current;
     if (activeLink && container) {
@@ -123,7 +121,7 @@ function FloatingNav() {
       style={{ borderBottom: "1px solid transparent" }}
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-        <Link href="/" className="group">
+        <Link href="/dashboard" className="group">
           <BrandLogo iconSize={32} textClassName="text-lg font-extrabold tracking-wider text-white font-sans" />
         </Link>
 
@@ -144,10 +142,13 @@ function FloatingNav() {
             />
 
             {/* Links layer */}
-            {SECTIONS.map((section, i) => {
+            {DASHBOARD_SECTIONS.map((section, i) => {
               const labels: Record<string, string> = {
                 features: "Features",
-                "how-it-works": "How it Works",
+                "whats-new": "What's New",
+                workspace: "Workspace",
+                scan: "Scan",
+                roadmap: "Roadmap",
                 pricing: "Pricing",
                 testimonials: "Testimonials",
               };
@@ -166,52 +167,20 @@ function FloatingNav() {
               );
             })}
           </div>
-
-          {/* Glowing What's New Tab */}
-          <a
-            href="#whats-new"
-            className="px-3.5 py-1.5 text-[11px] font-semibold text-primary rounded-full border border-primary/40 bg-primary/10 hover:bg-primary/25 transition-all duration-300 shadow-[0_0_15px_rgba(59,130,246,0.2)] hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] uppercase tracking-wider flex items-center gap-1.5 animate-pulse"
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-            What&apos;s New
-          </a>
         </div>
 
         <div className="flex items-center gap-3">
 
 
-          {user ? (
-            <div className="flex items-center gap-3">
-              <Link
-                href="/history"
-                className="text-sm font-semibold text-on-surface-variant hover:text-primary transition px-3 py-1.5 rounded-full hover:bg-surface-container-high"
-              >
-                History
-              </Link>
-              <Link href="/settings" className="flex items-center gap-2 group p-1.5 rounded-full hover:bg-surface-container-high transition">
-                <span className="text-sm font-medium text-on-surface truncate max-w-[120px] hidden sm:block">
-                  {user.user_metadata?.full_name || user.email?.split('@')[0]}
-                </span>
-                <div className="h-8 w-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs ring-2 ring-transparent group-hover:ring-primary/30 transition-all">
-                  {(user.user_metadata?.full_name || user.email || "U")[0].toUpperCase()}
-                </div>
-              </Link>
-            </div>
-          ) : (
-            <>
-              <Link
-                href="/login"
-                className="btn-secondary rounded-full px-5 py-2.5 text-sm hidden sm:inline-flex"
-              >
-                Log In
-              </Link>
-              <Link
-                href="/signup"
-                className="btn-primary rounded-full px-5 py-2.5 text-sm font-semibold"
-              >
-                Get Started
-              </Link>
-            </>
+          {user && (
+            <Link href="/settings" className="flex items-center gap-2 group p-1.5 rounded-full hover:bg-surface-container-high transition">
+              <span className="text-sm font-medium text-on-surface truncate max-w-[120px] hidden sm:block">
+                {user.user_metadata?.full_name || user.email?.split('@')[0]}
+              </span>
+              <div className="h-8 w-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs ring-2 ring-transparent group-hover:ring-primary/30 transition-all">
+                {(user.user_metadata?.full_name || user.email || "U")[0].toUpperCase()}
+              </div>
+            </Link>
           )}
         </div>
       </div>
@@ -271,10 +240,10 @@ function HeroSection() {
                 Scan Your Contract →
               </a>
               <a
-                href="#how-it-works"
+                href="#workspace"
                 className="btn-secondary rounded-full px-8 py-3.5 text-sm"
               >
-                See How It Works
+                Go to Workspace
               </a>
             </div>
 
@@ -344,64 +313,44 @@ function HeroSection() {
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   FEATURES — 4 glassmorphic cards with scroll animation
-   ═══════════════════════════════════════════════════════════════ */
 const features = [
   {
-    icon: (
-      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6z" />
-      </svg>
-    ),
-    title: "Automatic Risk Labeling",
+    icon: "🔍",
+    title: "AI-Powered Scan",
     description:
-      "Our AI identifies every clause and labels it based on industry standards for Indian freelancers. Instant clarity on what's normal and what's predatory.",
+      "Upload any PDF or text contract. Our RAG-enhanced pipeline scans and extracts risky terms across 10 distinct legal compliance categories.",
   },
   {
-    icon: (
-      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
-      </svg>
-    ),
-    title: "Financial Impact Scoring",
+    icon: "💰",
+    title: "Financial Impact",
     description:
-      "We don't just say \"this is risky\". We estimate the potential loss in ₹ based on your project value. Seeing the cost makes negotiation a priority.",
+      "Get clear estimates of the hidden financial risks of each clause, helping you prioritize what to negotiate before you sign.",
   },
   {
-    icon: (
-      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
-      </svg>
-    ),
-    title: "1-Click Negotiation Drafting",
+    icon: "💡",
+    title: "1-Click Negotiation",
     description:
-      "Don't know how to ask for changes? We generate polite but firm negotiation messages for every risky clause. Just copy, paste, and send.",
+      "Receive plain-English rewrites and direct counter-proposals to send back to clients, avoiding awkward legal back-and-forth.",
   },
   {
-    icon: (
-      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-      </svg>
-    ),
-    title: "WhatsApp & Email Export",
+    icon: "📲",
+    title: "WhatsApp Export",
     description:
-      "Send your risk reports and negotiation drafts directly to your WhatsApp or Gmail. Keep your legal strategy organized where you communicate with clients.",
+      "Export suggested rewrites directly to WhatsApp in 1-click. Share clean, professional bullet points to negotiate on the go.",
   },
   {
-    icon: (
-      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-      </svg>
-    ),
-    title: "Smart Invoice Builder",
+    icon: "🧮",
+    title: "Smart Invoice Studio",
     description:
       "A premium CRM-style billing studio. Build, customize, and calculate professional invoices with itemized tax/discounts and export to PDF instantly.",
-  }
+  },
 ];
 
-function FeaturesSection() {
+/* ═══════════════════════════════════════════════════════════════
+   FEATURES SECTION (Picture 1 - Changed to show user relevance tabs)
+   ═══════════════════════════════════════════════════════════════ */
+function FeaturesSection({ plan, scansCount }: { plan: string; scansCount: number }) {
+  const formattedPlan = plan.charAt(0).toUpperCase() + plan.slice(1);
   return (
     <section id="features" className="relative py-24 lg:py-32 overflow-hidden">
       <div className="mesh-gradient-subtle relative">
@@ -409,14 +358,14 @@ function FeaturesSection() {
           <div className="text-center animate-on-scroll">
             <span className="text-label text-primary">Features</span>
             <h2 className="mt-3 text-display text-3xl font-bold sm:text-4xl lg:text-5xl">
-              Everything you need to{" "}
-              <span className="gradient-text-primary">protect your work.</span>
+              Everything you need to <span className="gradient-text-primary">protect your work.</span>
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-on-surface-variant">
               Most freelancers lose money not because they lack skill, but because they sign terms they can&apos;t fulfill. We solve that in seconds.
             </p>
           </div>
 
+          {/* 5 Core Feature Cards with Flip Animation */}
           <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {features.map((feature, i) => (
               <div
@@ -430,7 +379,7 @@ function FeaturesSection() {
                     <div className="diagonal-glow-overlay" />
                     <div className="relative z-10">
                       <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                        {feature.icon}
+                        <span className="text-2xl">{feature.icon}</span>
                       </div>
                       <h3 className="text-lg font-semibold text-on-surface">{feature.title}</h3>
                     </div>
@@ -454,6 +403,96 @@ function FeaturesSection() {
               </div>
             ))}
           </div>
+
+          {/* Membership & Rights Subheading */}
+          <div className="mt-24 text-center animate-on-scroll">
+            <span className="text-label text-primary">Membership & Rights</span>
+            <h3 className="mt-2 text-2xl font-bold text-on-surface">
+              Your active <span className="gradient-text-primary">legal portal & status.</span>
+            </h3>
+          </div>
+
+          <div className="mt-12 grid gap-6 sm:grid-cols-2 max-w-4xl mx-auto">
+            {/* Card 1: IPS Rights Resource */}
+            <div className="flip-card-container" style={{ height: "230px" }}>
+              <div className="flip-card-inner">
+                {/* FRONT FACE */}
+                <div className="flip-card-front glass-card p-6 flex flex-col justify-between cursor-pointer border border-white/10 bg-[#1c1f2d]/85 backdrop-blur-xl relative overflow-hidden">
+                  <div className="diagonal-glow-overlay" />
+                  <div className="relative z-10">
+                    <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+                      </svg>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-on-surface">Learn about your IPS rights, contracts etc</h3>
+                    </div>
+                  </div>
+                  <div className="relative z-10 flex items-center justify-between">
+                    <span className="text-[10px] font-bold bg-secondary/15 text-secondary border border-secondary/25 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      Resource Tab
+                    </span>
+                    <span className="text-[10px] text-primary font-bold uppercase tracking-wider animate-pulse">
+                      Hover to open ✨
+                    </span>
+                  </div>
+                </div>
+                {/* BACK FACE */}
+                <div className="flip-card-back glass-card p-6 flex flex-col justify-between cursor-default border border-white/10 relative overflow-hidden">
+                  <div className="diagonal-glow-overlay" />
+                  <div className="relative z-10">
+                    <h3 className="text-sm font-bold text-primary mb-2 uppercase tracking-wider">IP, Non-Compete & Liability Rights</h3>
+                    <p className="text-xs leading-relaxed text-on-surface-variant">
+                      Understand IP transfer policies, non-compete limits, and liability standards under Indian law. (This tab will become active in future updates).
+                    </p>
+                  </div>
+                  <div className="relative z-10 text-[9px] text-on-surface-variant/40 italic">
+                    Legal Protection Database
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 2: Current Plan Details */}
+            <div className="flip-card-container" style={{ height: "230px" }}>
+              <div className="flip-card-inner">
+                {/* FRONT FACE */}
+                <div className="flip-card-front glass-card p-6 flex flex-col justify-between border border-white/10 bg-[#1c1f2d]/85 backdrop-blur-xl relative overflow-hidden">
+                  <div className="diagonal-glow-overlay" />
+                  <div className="relative z-10">
+                    <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.746 3.746 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-semibold text-on-surface">Learn about current plan</h3>
+                  </div>
+                  <div className="relative z-10 flex items-center justify-between">
+                    <a href="#pricing" className="text-xs font-semibold text-primary hover:underline transition relative z-20">
+                      Change Plan →
+                    </a>
+                    <span className="text-[10px] text-primary font-bold uppercase tracking-wider animate-pulse">
+                      Hover to view stats ✨
+                    </span>
+                  </div>
+                </div>
+                {/* BACK FACE */}
+                <div className="flip-card-back glass-card p-6 flex flex-col justify-between cursor-default border border-white/10 relative overflow-hidden">
+                  <div className="diagonal-glow-overlay" />
+                  <div className="relative z-10">
+                    <h3 className="text-sm font-bold text-primary mb-2 uppercase tracking-wider">Current Subscription Status</h3>
+                    <p className="text-xs leading-relaxed text-on-surface-variant">
+                      You are currently on the <span className="font-bold text-primary">{formattedPlan} Plan</span>. Completed {scansCount} scans. Scroll down to see upgrade options.
+                    </p>
+                  </div>
+                  <div className="relative z-10 text-[9px] text-on-surface-variant/40 italic">
+                    Subscription Tier Details
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -464,63 +503,14 @@ function FeaturesSection() {
    WHAT'S NEW — Feature highlight of Invoice Builder
    ═══════════════════════════════════════════════════════════════ */
 function WhatsNewSection() {
-  const { user } = useAuth();
-  const router = useRouter();
-  const [showLoginModal, setShowLoginModal] = useState(false);
-
-  const handleTryNow = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (user) {
-      router.push("/invoice");
-    } else {
-      setShowLoginModal(true);
-    }
-  };
-
   return (
     <section id="whats-new" className="relative py-24 lg:py-32 section-recessed overflow-hidden">
-      {/* Background glow and graphics */}
       <div className="absolute top-[10%] left-[20%] w-[350px] h-[350px] rounded-full bg-primary/5 blur-[100px] pointer-events-none" />
       <div className="absolute bottom-[15%] right-[10%] w-[450px] h-[450px] rounded-full bg-secondary/5 blur-[120px] pointer-events-none" />
 
-      {/* Login Modal */}
-      {showLoginModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#101320]/80 backdrop-blur-md animate-fade-in no-print">
-          <div className="relative w-full max-w-md p-8 rounded-3xl border border-primary/20 bg-[#1c1f2d]/95 shadow-2xl glass-card text-center space-y-6">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-md shadow-2xl shadow-primary/10">
-              <BrandLogo showText={false} iconSize={36} variant="simple" />
-            </div>
-            <div className="space-y-2">
-              <h3 className="text-xl font-bold text-white">Authentication Required</h3>
-              <p className="text-sm text-on-surface-variant leading-relaxed">
-                Log in or create a TermShield account to access the premium Smart Invoice Builder and save your progress.
-              </p>
-            </div>
-            <div className="flex gap-4">
-              <button
-                onClick={() => setShowLoginModal(false)}
-                className="flex-1 btn-secondary py-3 rounded-full text-xs font-semibold"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  setShowLoginModal(false);
-                  router.push("/login?redirect=/invoice");
-                }}
-                className="flex-1 btn-primary py-3 rounded-full text-xs font-semibold glow-primary"
-              >
-                Log In
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="relative z-10 mx-auto max-w-7xl px-6 lg:px-8">
         <div className="grid gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-          
-          {/* Left Column: Text description and CTA */}
+          {/* Left Column */}
           <div className="space-y-6 animate-on-scroll">
             <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/5 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.15em] text-primary">
               <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
@@ -555,25 +545,23 @@ function WhatsNewSection() {
             </ul>
 
             <div className="pt-2">
-              <button
-                onClick={handleTryNow}
-                className="btn-primary rounded-full px-8 py-3.5 text-sm font-semibold glow-primary-strong flex items-center gap-2"
+              <Link
+                href="/invoice"
+                className="btn-primary rounded-full px-8 py-3.5 text-sm font-semibold glow-primary-strong inline-flex items-center gap-2"
               >
                 Try Invoice Builder Now
                 <span>→</span>
-              </button>
+              </Link>
             </div>
           </div>
 
           {/* Right Column: Visual Mock of the Invoice Dashboard */}
-          <div 
-            onClick={handleTryNow}
-            className="relative cursor-pointer group animate-on-scroll-scale"
+          <Link 
+            href="/invoice"
+            className="relative group block animate-on-scroll-scale"
           >
-            {/* Ambient hover glow */}
             <div className="absolute -inset-1 rounded-[2.5rem] bg-gradient-to-r from-primary/20 to-secondary/20 blur-xl opacity-50 group-hover:opacity-100 transition duration-1000" />
             
-            {/* Main Mock Container */}
             <div className="relative rounded-[2rem] border border-[#2a324b]/30 bg-[#1c1f2d]/90 backdrop-blur-2xl p-5 shadow-2xl overflow-hidden glass-card flex gap-4 h-[440px] md:h-[500px]">
               
               {/* Dashboard Left Sidebar */}
@@ -722,8 +710,7 @@ function WhatsNewSection() {
               {/* Ambient visual overlays */}
               <div className="absolute bottom-[-10%] right-[-10%] w-[120px] h-[120px] bg-primary/10 blur-xl pointer-events-none rounded-full group-hover:bg-primary/25 transition-all duration-700" />
             </div>
-          </div>
-
+          </Link>
         </div>
       </div>
     </section>
@@ -731,106 +718,84 @@ function WhatsNewSection() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   HOW IT WORKS — 4-step timeline with scroll-triggered reveals
+   WORKSPACE SECTION (Picture 2 - Replaces "How It Works")
    ═══════════════════════════════════════════════════════════════ */
-const steps = [
-  {
-    step: "01",
-    title: "Upload Contract",
-    description: "Securely upload your PDF or paste contract text. All data is encrypted with AES-256 protocols.",
-    icon: (
-      <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-      </svg>
-    ),
-  },
-  {
-    step: "02",
-    title: "AI Scan",
-    description: "Our advanced LLM scans for 4 core risk patterns: IP Clauses, Payment, Non-compete, and Termination.",
-    icon: (
-      <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19 14.5M14.25 3.104c.251.023.501.05.75.082M19 14.5l-2.47 5.432a2.25 2.25 0 01-2.056 1.318H9.526a2.25 2.25 0 01-2.056-1.318L5 14.5m14 0H5" />
-      </svg>
-    ),
-  },
-  {
-    step: "03",
-    title: "Risk Breakdown",
-    description: "Get a clear, plain-English report with prioritized risks and detailed financial impact assessments.",
-    icon: (
-      <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5M9 11.25v1.5M12 9v3.75m3-6v6" />
-      </svg>
-    ),
-  },
-  {
-    step: "04",
-    title: "One-Click Negotiate",
-    description: "Use pre-drafted negotiation messages to protect your rights. Instant professional responses ready to send.",
-    icon: (
-      <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-      </svg>
-    ),
-  },
-];
-
-function HowItWorksSection() {
+function WorkspaceSection({ scansCount }: { scansCount: number }) {
   return (
-    <section id="how-it-works" className="relative py-24 lg:py-32 section-elevated overflow-hidden">
+    <section id="workspace" className="relative py-24 section-recessed overflow-hidden">
       <div className="relative z-10 mx-auto max-w-7xl px-6 lg:px-8">
         <div className="text-center animate-on-scroll">
-          <span className="text-label text-primary">How It Works</span>
+          <span className="text-label text-primary">Workspace</span>
           <h2 className="mt-3 text-display text-3xl font-bold sm:text-4xl lg:text-5xl">
-            From upload to protection in{" "}
-            <span className="gradient-text-primary">60 seconds.</span>
+            Quick Actions & <span className="gradient-text-primary">Tools</span>
           </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-on-surface-variant">
+            Jump directly into scanning a new contract, building invoices, or checking your transaction audit list.
+          </p>
         </div>
 
-        <div className="mt-16 grid gap-8 md:grid-cols-2 lg:grid-cols-4">
-          {steps.map((step, i) => (
-            <div
-              key={step.step}
-              className={`animate-on-scroll stagger-${i + 1} relative`}
-            >
-              {/* Connector line */}
-              {i < steps.length - 1 && (
-                <div className="hidden lg:block absolute top-10 left-[calc(50%+2rem)] w-[calc(100%-2rem)] h-px bg-gradient-to-r from-primary/30 to-transparent" />
-              )}
-
-              <div className="flip-card-container" style={{ height: "230px" }}>
-                <div className="flip-card-inner">
-                  {/* FRONT FACE */}
-                  <div className="flip-card-front glass-card p-6 text-center flex flex-col justify-between border border-white/10 bg-[#1c1f2d]/85 backdrop-blur-xl relative overflow-hidden">
-                    <div className="diagonal-glow-overlay" />
-                    <div className="relative z-10">
-                      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-all">
-                        {step.icon}
-                      </div>
-                      <span className="text-[10px] font-bold text-primary/50 tracking-widest">STEP {step.step}</span>
-                      <h3 className="mt-1.5 text-base font-semibold text-on-surface">{step.title}</h3>
-                    </div>
-                    <div className="relative z-10 text-[9px] text-primary/60 uppercase tracking-wider flex items-center justify-center gap-1.5 animate-pulse">
-                      <span>Hover to reveal</span>
-                      <span>✨</span>
-                    </div>
-                  </div>
-                  {/* BACK FACE */}
-                  <div className="flip-card-back glass-card p-6 text-center flex flex-col justify-between border border-white/10 relative overflow-hidden">
-                    <div className="diagonal-glow-overlay" />
-                    <div className="relative z-10">
-                      <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Step {step.step} Details</span>
-                      <p className="mt-3 text-xs leading-relaxed text-[#c4cbdf]">{step.description}</p>
-                    </div>
-                    <div className="relative z-10 text-[9px] text-[#c4cbdf]/30 italic">
-                      Secure Workflow
-                    </div>
-                  </div>
-                </div>
-              </div>
+        <div className="mt-16 grid gap-6 md:grid-cols-3 max-w-6xl mx-auto">
+          {/* Card 1: Scan Now */}
+          <a
+            href="#scan"
+            className="animate-on-scroll-scale stagger-1 glass-card rounded-2xl p-6 group cursor-pointer hover:border-primary/30 transition-all duration-300"
+          >
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary transition-all duration-300 group-hover:bg-primary/20 group-hover:shadow-glow-primary">
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+              </svg>
             </div>
-          ))}
+            <h3 className="text-lg font-semibold text-on-surface group-hover:text-primary transition-colors">Scan Now</h3>
+            <p className="mt-2 text-sm leading-6 text-on-surface-variant">
+              Upload a PDF contract or paste contract text directly. AI scans for critical IP, liability, exclusivity, and termination risks.
+            </p>
+            <span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-primary group-hover:translate-x-1 transition-transform">
+              Open Scanner →
+            </span>
+          </a>
+
+          {/* Card 2: Invoice Builder */}
+          <Link
+            href="/invoice"
+            className="animate-on-scroll-scale stagger-2 glass-card rounded-2xl p-6 group cursor-pointer hover:border-primary/30 transition-all duration-300"
+          >
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary transition-all duration-300 group-hover:bg-primary/20 group-hover:shadow-glow-primary">
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-on-surface group-hover:text-primary transition-colors">Invoice Builder</h3>
+            <p className="mt-2 text-sm leading-6 text-on-surface-variant">
+              Launch billing studio. Prepare GST/tax invoices, calculate gross margins dynamically, and download client-ready PDFs.
+            </p>
+            <span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-primary group-hover:translate-x-1 transition-transform">
+              Launch Billing Studio →
+            </span>
+          </Link>
+
+          {/* Card 3: View Past Scans (bringing the history button here) */}
+          <Link
+            href="/history"
+            className="animate-on-scroll-scale stagger-3 glass-card rounded-2xl p-6 group cursor-pointer hover:border-primary/30 transition-all duration-300"
+          >
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary transition-all duration-300 group-hover:bg-primary/20 group-hover:shadow-glow-primary">
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+              </svg>
+            </div>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-on-surface group-hover:text-primary transition-colors">View Past Scans</h3>
+              <span className="text-[10px] font-bold bg-primary/15 text-primary border border-primary/20 px-2 py-0.5 rounded-full">
+                {scansCount} Scans
+              </span>
+            </div>
+            <p className="mt-2 text-sm leading-6 text-on-surface-variant">
+              Review completed evaluations. Copy pre-drafted negotiation messages, share reports, and trace contract risk revisions.
+            </p>
+            <span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-primary group-hover:translate-x-1 transition-transform">
+              Review History →
+            </span>
+          </Link>
         </div>
       </div>
     </section>
@@ -838,15 +803,19 @@ function HowItWorksSection() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   SCAN SECTION — Upload form integration point
+   DASHBOARD SCAN SECTION (Picture 3)
    ═══════════════════════════════════════════════════════════════ */
-function ScanSection() {
+function DashboardScanSection({ scansCount }: { scansCount: number }) {
   return (
-    <section id="scan" className="relative py-24 lg:py-32 overflow-hidden">
+    <section id="scan" className="relative py-24 overflow-hidden">
       <div className="mesh-gradient-subtle relative">
         <div className="relative z-10 mx-auto max-w-4xl px-6 lg:px-8">
           <div className="text-center animate-on-scroll mb-12">
-            <span className="text-label text-primary">Try It Now</span>
+            {scansCount > 0 ? (
+              <span className="text-label text-primary">Scan Again</span>
+            ) : (
+              <span className="text-label text-primary">Your First Scan</span>
+            )}
             <h2 className="mt-3 text-display text-3xl font-bold sm:text-4xl">
               Scan your contract in{" "}
               <span className="gradient-text-primary">seconds.</span>
@@ -856,20 +825,12 @@ function ScanSection() {
             </p>
           </div>
           <div className="animate-on-scroll-scale stagger-2">
-            <UploadFormInline />
+            <UploadForm showFreePlan={true} />
           </div>
         </div>
       </div>
     </section>
   );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   INLINE UPLOAD FORM — Embedded on landing page
-   (Imports the real UploadForm component)
-   ═══════════════════════════════════════════════════════════════ */
-function UploadFormInline() {
-  return <UploadForm />;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -897,42 +858,31 @@ function RoadmapSection() {
         <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-primary/10 to-transparent blur-3xl"></div>
         <div className="absolute bottom-0 left-0 w-1/2 h-full bg-gradient-to-r from-secondary/10 to-transparent blur-3xl"></div>
       </div>
-      <div className="relative z-10 mx-auto max-w-7xl px-6 lg:px-8 perspective-wrapper">
+      
+      <div className="relative z-10 mx-auto max-w-7xl px-6 lg:px-8">
         <div className="text-center animate-on-scroll mb-16">
-          <span className="text-label text-primary">Coming Soon</span>
-          <h2 className="mt-3 text-display text-3xl font-bold sm:text-4xl lg:text-5xl">
-            The future of <span className="gradient-text">freelance protection.</span>
+          <span className="text-label text-primary">Roadmap</span>
+          <h2 className="mt-3 text-display text-3xl font-bold sm:text-4xl">
+            What we are building <span className="gradient-text-primary">next.</span>
           </h2>
-          <p className="mx-auto mt-4 max-w-xl text-on-surface-variant">
-            We are building a comprehensive suite to secure every aspect of your independent business.
-          </p>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {upcomingFeatures.map((feat, i) => {
-            const isLeft = i % 2 === 0;
-            const animationClass = isLeft ? 'animate-turn-in-left' : 'animate-turn-in-right';
-            return (
-              <div
-                key={feat.id}
-                className={`${animationClass} stagger-${(i % 3) + 1} marble-card rounded-2xl p-5 flex items-center gap-4`}
-              >
-                <div className="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-xl bg-surface-container-highest shadow-inner text-xl">
-                  {feat.icon}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-semibold text-on-surface truncate pr-2" title={feat.title}>
-                    {feat.title}
-                  </h3>
-                  <div className="mt-1 flex items-center">
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wider ${feat.roleColor} ${feat.roleBg}`}>
-                      {feat.tag}
-                    </span>
-                  </div>
-                </div>
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 max-w-7xl mx-auto">
+          {upcomingFeatures.map((feat, i) => (
+            <div
+              key={feat.id}
+              className={`animate-on-scroll-scale stagger-${(i % 4) + 1} glass-card rounded-2xl p-6 group cursor-default relative overflow-hidden`}
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">{feat.icon}</span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${feat.roleBg} ${feat.roleColor}`}>
+                  {feat.tag}
+                </span>
               </div>
-            );
-          })}
+              <h3 className="mt-4 text-base font-semibold text-on-surface group-hover:text-primary transition">{feat.title}</h3>
+              <span className="absolute bottom-4 right-4 text-xs font-bold text-on-surface-variant/20">#{feat.id}</span>
+            </div>
+          ))}
         </div>
       </div>
     </section>
@@ -940,9 +890,9 @@ function RoadmapSection() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   PRICING — 2 glassmorphic plan cards
+   DASHBOARD PRICING — 3 glassmorphic plan cards (Picture 4)
    ═══════════════════════════════════════════════════════════════ */
-function PricingSection() {
+function DashboardPricingSection({ currentPlan }: { currentPlan: string }) {
   return (
     <section id="pricing" className="relative py-24 lg:py-32 section-elevated overflow-hidden">
       <div className="relative z-10 mx-auto max-w-7xl px-6 lg:px-8">
@@ -952,62 +902,30 @@ function PricingSection() {
             The cheapest insurance policy{" "}
             <span className="gradient-text-primary">you&apos;ll ever have.</span>
           </h2>
+          <p className="mx-auto mt-4 max-w-xl text-on-surface-variant">
+            Choose a plan to suit your scanning needs. Upgrade or unlock features instantly.
+          </p>
         </div>
 
-        <div className="mt-16 grid gap-8 sm:grid-cols-2 max-w-3xl mx-auto">
-          {/* Basic Plan */}
-          <div className="animate-on-scroll-scale stagger-1 glass-card rounded-3xl p-8">
-            <span className="text-label text-on-surface-variant">Basic Scan</span>
-            <div className="mt-3 flex items-baseline gap-2">
-              <span className="text-4xl font-extrabold text-on-surface">₹49</span>
-              <span className="text-sm text-on-surface-variant">/ scan</span>
-            </div>
-            <p className="mt-3 text-sm text-on-surface-variant leading-6">
-              Scan across 8 risk categories including Liability, Indemnity, Confidentiality, and Revisions.
-            </p>
-            <ul className="mt-6 space-y-3">
-              {["8 risk categories", "Evidence-based analysis", "Financial impact assessment", "Confidence scoring"].map((f) => (
-                <li key={f} className="flex items-center gap-3 text-sm text-on-surface">
-                  <svg className="h-4 w-4 flex-shrink-0 text-primary" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                  {f}
-                </li>
-              ))}
-              <li className="flex items-center gap-3 text-sm text-on-surface-variant/50">
-                <svg className="h-4 w-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-                Negotiation drafts
-              </li>
-            </ul>
-            <a href="#scan" className="mt-8 block w-full rounded-full btn-secondary py-3 text-center text-sm font-semibold">
-              Start Basic Scan
-            </a>
-          </div>
-
-          {/* Premium Plan — Featured */}
-          <div className="animate-on-scroll-scale stagger-2 relative rounded-3xl gradient-border">
-            <div className="glass-card rounded-3xl p-8 glow-primary-strong relative z-10 h-full">
+        <div className="mt-16 grid gap-8 md:grid-cols-3 max-w-5xl mx-auto items-stretch">
+          {/* Free Plan Card */}
+          <div className={`animate-on-scroll-scale stagger-1 glass-card rounded-3xl p-8 flex flex-col justify-between ${currentPlan === "free" ? "ring-2 ring-primary/40 shadow-glow-primary" : ""}`}>
+            <div>
               <div className="flex items-center justify-between">
-                <span className="text-label text-primary">Full Review + Fix</span>
-                <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">POPULAR</span>
+                <span className="text-label text-on-surface-variant">Free Plan</span>
+                {currentPlan === "free" && (
+                  <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">CURRENT</span>
+                )}
               </div>
               <div className="mt-3 flex items-baseline gap-2">
-                <span className="text-4xl font-extrabold text-on-surface">₹99</span>
+                <span className="text-4xl font-extrabold text-on-surface">₹0</span>
                 <span className="text-sm text-on-surface-variant">/ scan</span>
               </div>
               <p className="mt-3 text-sm text-on-surface-variant leading-6">
-                All 10 risk categories plus auto-generated counter offers, WhatsApp export, and full impact reports.
+                Scan across 4 core risk categories: IP, Payment, Non-Compete, and Termination.
               </p>
               <ul className="mt-6 space-y-3">
-                {[
-                  "All 10 risk categories",
-                  "Auto-generated counter offers",
-                  "Direct WhatsApp export",
-                  "Financial impact reports",
-                  "Email integration",
-                ].map((f) => (
+                {["4 core risk categories", "Confidence scoring", "Plain-English explanations"].map((f) => (
                   <li key={f} className="flex items-center gap-3 text-sm text-on-surface">
                     <svg className="h-4 w-4 flex-shrink-0 text-primary" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -1015,10 +933,124 @@ function PricingSection() {
                     {f}
                   </li>
                 ))}
+                <li className="flex items-center gap-3 text-sm text-on-surface-variant/50">
+                  <svg className="h-4 w-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                  Negotiation drafts
+                </li>
               </ul>
-              <a href="#scan" className="mt-8 block w-full rounded-full btn-primary py-3 text-center text-sm font-semibold">
-                Start Premium Scan
-              </a>
+            </div>
+            <div className="mt-8">
+              {currentPlan === "free" ? (
+                <button disabled className="w-full rounded-full bg-primary/10 border border-primary/20 py-3 text-center text-sm font-semibold text-primary cursor-default">
+                  Active
+                </button>
+              ) : (
+                <button disabled className="w-full rounded-full bg-surface-container-highest/50 py-3 text-center text-sm font-semibold text-on-surface-variant/50 cursor-not-allowed">
+                  Downgrade disabled
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Basic Plan Card */}
+          <div className={`animate-on-scroll-scale stagger-2 glass-card rounded-3xl p-8 flex flex-col justify-between ${currentPlan === "basic" ? "ring-2 ring-primary/40 shadow-glow-primary" : ""}`}>
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-label text-on-surface-variant">Basic Scan</span>
+                {currentPlan === "basic" && (
+                  <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">CURRENT</span>
+                )}
+              </div>
+              <div className="mt-3 flex items-baseline gap-2">
+                <span className="text-4xl font-extrabold text-on-surface">₹49</span>
+                <span className="text-sm text-on-surface-variant">/ scan</span>
+              </div>
+              <p className="mt-3 text-sm text-on-surface-variant leading-6">
+                Scan across 8 risk categories including Liability, Indemnity, Confidentiality, and Revisions.
+              </p>
+              <ul className="mt-6 space-y-3">
+                {["8 risk categories", "Evidence-based analysis", "Financial impact assessment", "Confidence scoring", "Category labeling"].map((f) => (
+                  <li key={f} className="flex items-center gap-3 text-sm text-on-surface">
+                    <svg className="h-4 w-4 flex-shrink-0 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    {f}
+                  </li>
+                ))}
+                <li className="flex items-center gap-3 text-sm text-on-surface-variant/50">
+                  <svg className="h-4 w-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                  Negotiation drafts
+                </li>
+              </ul>
+            </div>
+            <div className="mt-8">
+              {currentPlan === "basic" ? (
+                <button disabled className="w-full rounded-full bg-primary/10 border border-primary/20 py-3 text-center text-sm font-semibold text-primary cursor-default">
+                  Active
+                </button>
+              ) : currentPlan === "premium" ? (
+                <button disabled className="w-full rounded-full bg-surface-container-highest/50 py-3 text-center text-sm font-semibold text-on-surface-variant/50 cursor-not-allowed">
+                  Downgrade disabled
+                </button>
+              ) : (
+                <a href="#scan" className="block w-full rounded-full btn-secondary py-3 text-center text-sm font-semibold hover:shadow-glow-primary transition">
+                  Upgrade to Basic
+                </a>
+              )}
+            </div>
+          </div>
+
+          {/* Premium Plan Card (Featured) */}
+          <div className="animate-on-scroll-scale stagger-3 relative rounded-3xl gradient-border flex flex-col">
+            <div className={`glass-card rounded-3xl p-8 glow-primary-strong relative z-10 flex-1 flex flex-col justify-between ${currentPlan === "premium" ? "ring-2 ring-primary/60 shadow-glow-primary" : ""}`}>
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-label text-primary">Full Review + Fix</span>
+                  {currentPlan === "premium" ? (
+                    <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">CURRENT</span>
+                  ) : (
+                    <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">POPULAR</span>
+                  )}
+                </div>
+                <div className="mt-3 flex items-baseline gap-2">
+                  <span className="text-4xl font-extrabold text-on-surface">₹99</span>
+                  <span className="text-sm text-on-surface-variant">/ scan</span>
+                </div>
+                <p className="mt-3 text-sm text-on-surface-variant leading-6">
+                  All 10 risk categories plus auto-generated counter offers, WhatsApp export, and full impact reports.
+                </p>
+                <ul className="mt-6 space-y-3">
+                  {[
+                    "All 10 risk categories",
+                    "Auto-generated counter offers",
+                    "Direct WhatsApp export",
+                    "Financial impact reports",
+                    "Email integration",
+                  ].map((f) => (
+                    <li key={f} className="flex items-center gap-3 text-sm text-on-surface">
+                      <svg className="h-4 w-4 flex-shrink-0 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="mt-8">
+                {currentPlan === "premium" ? (
+                  <button disabled className="w-full rounded-full bg-primary/10 border border-primary/20 py-3 text-center text-sm font-semibold text-primary cursor-default">
+                    Active
+                  </button>
+                ) : (
+                  <a href="#scan" className="block w-full rounded-full btn-primary py-3 text-center text-sm font-semibold glow-primary shadow-glow-primary transition">
+                    Upgrade to Premium
+                  </a>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -1093,28 +1125,41 @@ function TestimonialsSection() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   CTA — Final conversion section
+   CTA SECTION (Picture 5)
    ═══════════════════════════════════════════════════════════════ */
-function CTASection() {
+function CTASection({ scansCount }: { scansCount: number }) {
   return (
     <section className="relative py-24 lg:py-32 section-elevated overflow-hidden">
       <div className="mesh-gradient-subtle relative">
         <div className="relative z-10 mx-auto max-w-4xl px-6 text-center lg:px-8">
           <div className="animate-on-scroll">
-            <h2 className="text-display text-3xl font-bold sm:text-4xl lg:text-5xl">
-              Join <span className="gradient-text">12,000+</span> Indian freelancers
-            </h2>
-            <p className="mx-auto mt-4 max-w-xl text-on-surface-variant text-lg">
-              Who use TermShield to protect their time, money, and intellectual property. Start scanning for free.
-            </p>
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-              <a
-                href="#scan"
-                className="btn-primary rounded-full px-10 py-4 text-base font-semibold glow-primary-strong"
-              >
-                Scan Your First Contract →
-              </a>
-            </div>
+            {scansCount === 0 ? (
+              <>
+                <h2 className="text-display text-3xl font-bold sm:text-4xl lg:text-5xl">
+                  Join <span className="gradient-text">12,000+</span> Indian freelancers
+                </h2>
+                <p className="mx-auto mt-4 max-w-xl text-on-surface-variant text-lg">
+                  Who use TermShield to protect their time, money, and intellectual property. Start scanning for free.
+                </p>
+                <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+                  <a
+                    href="#scan"
+                    className="btn-primary rounded-full px-10 py-4 text-base font-semibold glow-primary-strong"
+                  >
+                    Scan Your First Contract →
+                  </a>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className="text-display text-3xl font-bold sm:text-4xl lg:text-5xl">
+                  You and <span className="gradient-text">12,000+</span> users trust us
+                </h2>
+                <p className="mx-auto mt-4 max-w-xl text-on-surface-variant text-lg">
+                  Thank you for protecting your contracts and securing your independent workforce with TermShield.
+                </p>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -1123,44 +1168,30 @@ function CTASection() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   FOOTER
+   DASHBOARD FOOTER
    ═══════════════════════════════════════════════════════════════ */
-function Footer() {
+function DashboardFooter() {
   const { user } = useAuth();
   const router = useRouter();
 
   const handleInvoiceClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (user) {
-      router.push("/invoice");
-    } else {
-      router.push("/login?redirect=/invoice");
-    }
+    router.push("/invoice");
   };
 
   return (
     <footer className="border-t border-outline-variant/10 py-16">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="grid gap-12 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Brand */}
           <div className="lg:col-span-1">
-            <Link href="/" className="group inline-block mb-4">
+            <Link href="/dashboard" className="group inline-block mb-4">
               <BrandLogo iconSize={30} textClassName="text-base font-extrabold tracking-wider text-white font-sans" />
             </Link>
             <p className="text-sm text-on-surface-variant leading-6">
               The intelligent guardian for India&apos;s independent workforce. Ensuring fair play in every signature.
             </p>
-            <div className="mt-4 flex gap-3">
-              <a href="#" className="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-container-high text-on-surface-variant transition hover:bg-primary/10 hover:text-primary">
-                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
-              </a>
-              <a href="#" className="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-container-high text-on-surface-variant transition hover:bg-primary/10 hover:text-primary">
-                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" /></svg>
-              </a>
-            </div>
           </div>
 
-          {/* Product */}
           <div>
             <h4 className="text-label text-on-surface-variant mb-4">Product</h4>
             <ul className="space-y-3">
@@ -1174,28 +1205,21 @@ function Footer() {
                   Invoice Builder
                 </button>
               </li>
-              <li><a href="#" className="text-sm text-on-surface-variant hover:text-primary transition">Documentation</a></li>
-              <li><a href="#" className="text-sm text-on-surface-variant hover:text-primary transition">API Reference</a></li>
             </ul>
           </div>
 
-          {/* Legal */}
           <div>
             <h4 className="text-label text-on-surface-variant mb-4">Legal</h4>
             <ul className="space-y-3">
               <li><a href="#" className="text-sm text-on-surface-variant hover:text-primary transition">Privacy Policy</a></li>
               <li><a href="#" className="text-sm text-on-surface-variant hover:text-primary transition">Terms of Service</a></li>
-              <li><a href="#" className="text-sm text-on-surface-variant hover:text-primary transition">Security</a></li>
-              <li><a href="#" className="text-sm text-on-surface-variant hover:text-primary transition">Contact Support</a></li>
             </ul>
           </div>
 
-          {/* Account */}
           <div>
             <h4 className="text-label text-on-surface-variant mb-4">Account</h4>
             <ul className="space-y-3">
-              <li><Link href="/login" className="text-sm text-on-surface-variant hover:text-primary transition">Login</Link></li>
-              <li><Link href="/signup" className="text-sm text-on-surface-variant hover:text-primary transition">Sign Up</Link></li>
+              <li><Link href="/history" className="text-sm text-on-surface-variant hover:text-primary transition">Past Scans</Link></li>
               <li><Link href="/settings" className="text-sm text-on-surface-variant hover:text-primary transition">Settings</Link></li>
             </ul>
           </div>
@@ -1212,34 +1236,95 @@ function Footer() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   MAIN PAGE — Assembles all sections
+   MAIN DASHBOARD COMPONENT
    ═══════════════════════════════════════════════════════════════ */
-export default function HomePage() {
-  useScrollAnimations();
-  const { user, loading } = useAuth();
+export default function DashboardPage() {
+  const { user, session, loading: authLoading } = useAuth();
   const router = useRouter();
 
+  const [userPlan, setUserPlan] = useState<string>("free");
+  const [scansCount, setScansCount] = useState<number>(0);
+  const [dataLoading, setDataLoading] = useState<boolean>(true);
+
+  useScrollAnimations();
+
   useEffect(() => {
-    if (!loading && user) {
-      router.push("/dashboard");
+    if (!authLoading && !user) {
+      router.push("/login");
     }
-  }, [user, loading, router]);
+  }, [user, authLoading, router]);
+
+  useEffect(() => {
+    async function fetchUserData() {
+      if (!user || !session) return;
+      try {
+        // Fetch user plan from the users table
+        const { data: profile } = await supabase
+          .from("users")
+          .select("plan")
+          .eq("id", user.id)
+          .maybeSingle();
+        
+        if (profile?.plan) {
+          setUserPlan(profile.plan);
+        }
+
+        // Fetch scan count via the authenticated history API to bypass RLS issues
+        const res = await fetch("/api/scan/history", {
+          headers: { "Authorization": `Bearer ${session.access_token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setScansCount((data.history ?? []).length);
+        }
+      } catch (err) {
+        console.error("Error fetching dashboard user data:", err);
+      } finally {
+        setDataLoading(false);
+      }
+    }
+
+    if (user && session) {
+      fetchUserData();
+    }
+  }, [user, session]);
+
+  if (authLoading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0a0c16] text-on-surface relative z-10 px-6">
+        <div className="relative p-8 rounded-[2rem] border border-white/10 bg-[#1c1f2d]/90 backdrop-blur-2xl shadow-2xl glass-card text-center max-w-sm w-full space-y-6">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-md shadow-2xl shadow-primary/10">
+            <BrandLogo showText={false} iconSize={36} variant="simple" />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-lg font-bold text-white tracking-wide">Accessing Legal Vault</h3>
+            <p className="text-xs text-on-surface-variant leading-relaxed">
+              Establishing a secure connection to the compliance databases...
+            </p>
+          </div>
+          <div className="flex justify-center pt-2">
+            <div className="animate-spin h-6 w-6 rounded-full border-2 border-primary border-t-transparent"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
-      <FloatingNav />
-      <main className="page-transition-enter">
+      <DashboardNav />
+      <main className="bg-background text-on-surface min-h-screen page-transition-enter">
         <HeroSection />
-        <FeaturesSection />
+        <FeaturesSection plan={userPlan} scansCount={scansCount} />
         <WhatsNewSection />
-        <HowItWorksSection />
-        <ScanSection />
+        <WorkspaceSection scansCount={scansCount} />
+        <DashboardScanSection scansCount={scansCount} />
         <RoadmapSection />
-        <PricingSection />
+        <DashboardPricingSection currentPlan={userPlan} />
         <TestimonialsSection />
-        <CTASection />
+        <CTASection scansCount={scansCount} />
       </main>
-      <Footer />
+      <DashboardFooter />
     </>
   );
 }

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
+import { BrandLogo } from "@/components/BrandLogo";
 
 // --- TYPES ---
 interface InvoiceItem {
@@ -85,11 +86,11 @@ interface Toast {
 
 // --- DEFAULT INITIAL STATE ---
 const DEFAULT_FREELANCER: FreelancerInfo = {
-  name: "Ditsu Kundu",
-  email: "ditsu@forthefreelancers.com",
-  company: "Freelance Dev Studio",
-  taxId: "GSTIN-29AAAFD887B1Z3",
-  address: "Indiranagar, Bengaluru, KA - 560038"
+  name: "User",
+  email: "",
+  company: "",
+  taxId: "",
+  address: ""
 };
 
 const DEFAULT_CLIENTS: ClientInfo[] = [
@@ -188,48 +189,30 @@ const INITIAL_INVOICE = (num: number): Invoice => {
   const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
   return {
     id: `inv-${Date.now()}-${num}`,
-    title: `SaaS Platform Deliverable #${num}`,
+    title: "",
     invoiceNumber: `TS-2026-${String(num).padStart(3, "0")}`,
     status: "Draft",
     issueDate,
     dueDate,
     currency: "INR",
-    client: DEFAULT_CLIENTS[0],
+    client: {
+      id: `client-new-${Date.now()}`,
+      name: "",
+      email: "",
+      company: "",
+      taxId: "",
+      address: ""
+    },
     freelancer: DEFAULT_FREELANCER,
-    items: [
-      {
-        id: `item-${Date.now()}-1`,
-        category: "development",
-        title: "Next.js Admin Dashboard",
-        description: "Custom admin interface with analytics charting, user roles control, and CSV exports.",
-        quantity: 32,
-        unit: "hours",
-        rate: 2500,
-        discount: 0,
-        frameworks: ["Next.js", "React", "TypeScript"],
-        notes: "Completed according to milestones"
-      },
-      {
-        id: `item-${Date.now()}-2`,
-        category: "design",
-        title: "Landing Page Wireframing",
-        description: "Figma interactive prototypes and high-fidelity mobile-responsive mockups.",
-        quantity: 12,
-        unit: "hours",
-        rate: 1800,
-        discount: 10,
-        frameworks: ["Figma"],
-        notes: "Approved by client on June 3"
-      }
-    ],
+    items: [],
     overallDiscount: 0,
-    taxRate: 18,
-    taxLabel: "GST",
-    expenses: 12500,
-    estimatedBudget: 120000,
-    notes: "Thank you for your business. Please review the scanned clauses to make sure payment is settled within 30 days.",
-    paymentTerms: "Bank Transfer or UPI. Net 30 days. 2% interest per month for delayed payment.",
-    tags: ["Product launch", "Web App"],
+    taxRate: 0,
+    taxLabel: "Tax",
+    expenses: 0,
+    estimatedBudget: 0,
+    notes: "",
+    paymentTerms: "",
+    tags: [],
     isBookmarked: false,
     recurring: {
       enabled: false,
@@ -265,19 +248,43 @@ export default function SmartInvoiceBuilder() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // --- LOCALSTORAGE PERSISTENCE ---
+  const saveToLocalStorage = useCallback((
+    updatedInvoices: Invoice[],
+    actId: string,
+    clientsList: ClientInfo[],
+    projectsList: ProjectInfo[],
+    bookmarksList: InvoiceItem[],
+    logsList: HistoryLog[]
+  ) => {
+    if (typeof window !== "undefined") {
+      const data = {
+        invoices: updatedInvoices,
+        activeInvoiceId: actId,
+        savedClients: clientsList,
+        savedProjects: projectsList,
+        bookmarkedItems: bookmarksList,
+        historyLogs: logsList
+      };
+      localStorage.setItem("termshield_invoice_data", JSON.stringify(data));
+    }
+  }, []);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const storedData = localStorage.getItem("termshield_invoice_data");
       if (storedData) {
         try {
           const parsed = JSON.parse(storedData);
-          if (parsed.invoices && parsed.invoices.length > 0) {
+          const hasOldData = parsed.invoices && parsed.invoices.some((inv: any) => inv.freelancer?.name === "Ditsu Kundu");
+          
+          if (parsed.invoices && parsed.invoices.length > 0 && !hasOldData) {
             setInvoices(parsed.invoices);
             setActiveInvoiceId(parsed.activeInvoiceId || parsed.invoices[0].id);
           } else {
             const init = [INITIAL_INVOICE(1)];
             setInvoices(init);
             setActiveInvoiceId(init[0].id);
+            saveToLocalStorage(init, init[0].id, DEFAULT_CLIENTS, DEFAULT_PROJECTS, [], []);
           }
           if (parsed.savedClients) setSavedClients(parsed.savedClients);
           if (parsed.savedProjects) setSavedProjects(parsed.savedProjects);
@@ -299,28 +306,7 @@ export default function SmartInvoiceBuilder() {
         setBookmarkedItems(presets);
       }
     }
-  }, []);
-
-  const saveToLocalStorage = useCallback((
-    updatedInvoices: Invoice[],
-    actId: string,
-    clientsList: ClientInfo[],
-    projectsList: ProjectInfo[],
-    bookmarksList: InvoiceItem[],
-    logsList: HistoryLog[]
-  ) => {
-    if (typeof window !== "undefined") {
-      const data = {
-        invoices: updatedInvoices,
-        activeInvoiceId: actId,
-        savedClients: clientsList,
-        savedProjects: projectsList,
-        bookmarkedItems: bookmarksList,
-        historyLogs: logsList
-      };
-      localStorage.setItem("termshield_invoice_data", JSON.stringify(data));
-    }
-  }, []);
+  }, [saveToLocalStorage]);
 
   // Sync back state changes to local storage helper
   const updateActiveInvoice = useCallback((updater: (inv: Invoice) => Invoice) => {
@@ -509,11 +495,11 @@ export default function SmartInvoiceBuilder() {
     const newItem: InvoiceItem = {
       id: `item-${Date.now()}-${Math.random()}`,
       category,
-      title: "New Service Description",
-      description: "Provide details of the deliverables or tasks completed.",
+      title: "",
+      description: "",
       quantity: 1,
       unit: "hours",
-      rate: 1500,
+      rate: 0,
       discount: 0,
       frameworks: [],
       notes: ""
@@ -523,7 +509,7 @@ export default function SmartInvoiceBuilder() {
       items: [...inv.items, newItem]
     }));
     addToast("Added new line item.", "success");
-    addLog(activeInvoiceId, `Added line item: ${newItem.title}`);
+    addLog(activeInvoiceId, "Added new line item");
   };
 
   const handleUpdateLineItem = (itemId: string, field: keyof InvoiceItem, value: any) => {
@@ -858,36 +844,29 @@ Created on TermShield Invoice Studio.`;
   };
 
   return (
-    <div className="min-h-screen bg-[#101320] text-[#e0e1f5] font-sans pb-16 selection:bg-[#4edea3]/30 selection:text-white relative overflow-hidden">
+    <div className="min-h-screen bg-[#101320] text-[#e0e1f5] font-sans pb-16 selection:bg-[#3b82f6]/30 selection:text-white relative overflow-hidden">
       
       {/* Dynamic ambient mesh gradients */}
       <div className="absolute top-0 left-0 w-full h-[500px] pointer-events-none z-0 bg-gradient-to-b from-[#1c1f2d]/40 to-transparent" />
-      <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[60%] rounded-full bg-[#4edea3]/5 blur-[120px] pointer-events-none z-0" />
+      <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[60%] rounded-full bg-[#3b82f6]/5 blur-[120px] pointer-events-none z-0" />
       <div className="absolute top-[30%] -right-[10%] w-[40%] h-[50%] rounded-full bg-[#d0bcff]/5 blur-[120px] pointer-events-none z-0" />
 
       {/* Header Bar */}
-      <header className="border-b border-[#3c4a42]/20 bg-[#101320]/80 backdrop-blur-xl sticky top-0 z-40 no-print">
+      <header className="border-b border-[#2a324b]/20 bg-[#101320]/80 backdrop-blur-xl sticky top-0 z-40 no-print">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-6">
-            <Link href="/" className="flex items-center gap-2 group">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#4edea3]/10 border border-[#4edea3]/20 transition-colors group-hover:bg-[#4edea3]/20">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-[#4edea3]">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                </svg>
-              </div>
-              <span className="text-lg font-bold tracking-tight text-[#e0e1f5]">
-                Term<span className="text-[#4edea3]">Shield</span>
-              </span>
+            <Link href="/" className="group">
+              <BrandLogo iconSize={32} textClassName="text-lg font-extrabold tracking-wider text-white font-sans" />
             </Link>
-            <div className="h-6 w-px bg-[#3c4a42]/30 hidden md:block" />
-            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#4edea3] bg-[#4edea3]/5 border border-[#4edea3]/15 px-3 py-1 rounded-full hidden md:inline-flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#4edea3] animate-pulse" />
+            <div className="h-6 w-px bg-[#2a324b]/30 hidden md:block" />
+            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#3b82f6] bg-[#3b82f6]/5 border border-[#3b82f6]/15 px-3 py-1 rounded-full hidden md:inline-flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#3b82f6] animate-pulse" />
               Invoice Billing Studio
             </span>
           </div>
 
           <div className="flex items-center gap-3">
-            <Link href="/settings" className="text-sm text-[#bbcabf] hover:text-white transition">
+            <Link href="/settings" className="text-sm text-[#c4cbdf] hover:text-white transition">
               Client Scans
             </Link>
             <button
@@ -908,14 +887,14 @@ Created on TermShield Invoice Studio.`;
             key={toast.id}
             className={`pointer-events-auto flex items-center gap-3 px-4 py-3.5 rounded-xl border backdrop-blur-md shadow-2xl transition-all duration-300 animate-slide-up ${
               toast.type === "success" 
-                ? "bg-[#101320]/95 border-[#4edea3]/30 text-white" 
+                ? "bg-[#101320]/95 border-[#10b981]/30 text-white" 
                 : toast.type === "warning" 
                 ? "bg-[#101320]/95 border-[#ffb4ab]/30 text-[#ffb4ab]" 
                 : "bg-[#101320]/95 border-[#d0bcff]/30 text-[#d0bcff]"
             }`}
           >
             {toast.type === "success" && (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-[#4edea3]"><polyline points="20 6 9 17 4 12" /></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-[#10b981]"><polyline points="20 6 9 17 4 12" /></svg>
             )}
             {toast.type === "warning" && (
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-[#ffb4ab]"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
@@ -933,34 +912,34 @@ Created on TermShield Invoice Studio.`;
         {/* Dashboard Quick Summary Widgets */}
         <section className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6 no-print">
           <div className="glass-card rounded-2xl p-4 flex flex-col justify-between">
-            <span className="text-xs text-[#bbcabf] font-medium tracking-wide">TOTAL INVOICES</span>
+            <span className="text-xs text-[#c4cbdf] font-medium tracking-wide">TOTAL INVOICES</span>
             <div className="flex items-baseline gap-2 mt-2">
               <span className="text-2xl font-bold text-white">{invoices.length}</span>
-              <span className="text-xs text-[#bbcabf]/75">active sheets</span>
+              <span className="text-xs text-[#c4cbdf]/75">active sheets</span>
             </div>
           </div>
           <div className="glass-card rounded-2xl p-4 flex flex-col justify-between">
-            <span className="text-xs text-[#bbcabf] font-medium tracking-wide">TOTAL HOURS</span>
+            <span className="text-xs text-[#c4cbdf] font-medium tracking-wide">TOTAL HOURS</span>
             <div className="flex items-baseline gap-2 mt-2">
               <span className="text-2xl font-bold text-white">{dashboardStats.totalHours}</span>
-              <span className="text-xs text-[#bbcabf]/75">billable hrs</span>
+              <span className="text-xs text-[#c4cbdf]/75">billable hrs</span>
             </div>
           </div>
           <div className="glass-card rounded-2xl p-4 flex flex-col justify-between">
-            <span className="text-xs text-[#bbcabf] font-medium tracking-wide">TOTAL PIPELINE REVENUE</span>
+            <span className="text-xs text-[#c4cbdf] font-medium tracking-wide">TOTAL PIPELINE REVENUE</span>
             <div className="flex items-baseline gap-2 mt-2">
-              <span className="text-2xl font-bold text-[#4edea3]">₹{dashboardStats.totalRevenue.toLocaleString()}</span>
+              <span className="text-2xl font-bold text-[#3b82f6]">₹{dashboardStats.totalRevenue.toLocaleString()}</span>
             </div>
           </div>
           <div className="glass-card rounded-2xl p-4 flex flex-col justify-between">
-            <span className="text-xs text-[#bbcabf] font-medium tracking-wide">PAID REVENUE</span>
+            <span className="text-xs text-[#c4cbdf] font-medium tracking-wide">PAID REVENUE</span>
             <div className="flex items-baseline gap-2 mt-2">
-              <span className="text-2xl font-bold text-[#4edea3]/90">₹{dashboardStats.paidRevenue.toLocaleString()}</span>
-              <span className="text-[10px] text-[#4edea3] font-semibold bg-[#4edea3]/10 border border-[#4edea3]/20 px-1.5 py-0.5 rounded">Settled</span>
+              <span className="text-2xl font-bold text-[#3b82f6]/90">₹{dashboardStats.paidRevenue.toLocaleString()}</span>
+              <span className="text-[10px] text-[#3b82f6] font-semibold bg-[#3b82f6]/10 border border-[#3b82f6]/20 px-1.5 py-0.5 rounded">Settled</span>
             </div>
           </div>
           <div className="glass-card rounded-2xl p-4 flex flex-col justify-between col-span-2 lg:col-span-1">
-            <span className="text-xs text-[#bbcabf] font-medium tracking-wide">PENDING BILLING</span>
+            <span className="text-xs text-[#c4cbdf] font-medium tracking-wide">PENDING BILLING</span>
             <div className="flex items-baseline gap-2 mt-2">
               <span className="text-2xl font-bold text-[#ffb4ab]">₹{dashboardStats.pendingRevenue.toLocaleString()}</span>
               <span className="text-[10px] text-[#ffb4ab] font-semibold bg-[#ffb4ab]/10 border border-[#ffb4ab]/20 px-1.5 py-0.5 rounded">Unpaid</span>
@@ -969,20 +948,20 @@ Created on TermShield Invoice Studio.`;
         </section>
 
         {/* Invoice Tabs Selector */}
-        <div className="flex flex-wrap items-center gap-2 border-b border-[#3c4a42]/15 pb-4 mb-6 no-print">
+        <div className="flex flex-wrap items-center gap-2 border-b border-[#2a324b]/15 pb-4 mb-6 no-print">
           {invoices.map(inv => (
             <button
               key={inv.id}
               onClick={() => setActiveInvoiceId(inv.id)}
               className={`flex items-center gap-2.5 px-4 py-2 text-xs font-semibold rounded-full border transition-all ${
                 inv.id === activeInvoiceId
-                  ? "bg-[#4edea3]/10 border-[#4edea3]/40 text-[#4edea3] shadow-md shadow-[#4edea3]/5"
-                  : "bg-[#1c1f2d]/50 border-white/[0.04] text-[#bbcabf] hover:bg-[#1c1f2d] hover:border-white/[0.1] hover:text-white"
+                  ? "bg-[#3b82f6]/10 border-[#3b82f6]/40 text-[#3b82f6] shadow-md shadow-[#3b82f6]/5"
+                  : "bg-[#1c1f2d]/50 border-white/[0.04] text-[#c4cbdf] hover:bg-[#1c1f2d] hover:border-white/[0.1] hover:text-white"
               }`}
             >
               <span>{inv.invoiceNumber}</span>
               <span className="h-1.5 w-1.5 rounded-full" style={{
-                backgroundColor: inv.status === "Paid" ? "#4edea3" : inv.status === "Draft" ? "#bbcabf" : inv.status === "Sent" ? "#d0bcff" : "#ffb4ab"
+                backgroundColor: inv.status === "Paid" ? "#3b82f6" : inv.status === "Draft" ? "#c4cbdf" : inv.status === "Sent" ? "#d0bcff" : "#ffb4ab"
               }} />
               {invoices.length > 1 && (
                 <span 
@@ -1005,7 +984,7 @@ Created on TermShield Invoice Studio.`;
           ))}
           <button
             onClick={handleAddNewInvoice}
-            className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-full border border-dashed border-[#4edea3]/30 text-[#4edea3] hover:bg-[#4edea3]/10 hover:border-[#4edea3] transition-all ml-auto"
+            className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-full border border-dashed border-[#3b82f6]/30 text-[#3b82f6] hover:bg-[#3b82f6]/10 hover:border-[#3b82f6] transition-all ml-auto"
           >
             <span>+ Add Invoice</span>
           </button>
@@ -1018,11 +997,11 @@ Created on TermShield Invoice Studio.`;
           <aside className={`no-print space-y-4 transition-all duration-300 ${sidebarCollapsed ? "lg:w-0 overflow-hidden opacity-0 pointer-events-none" : "w-full"}`}>
             
             {/* Collapse Trigger Button (internal) */}
-            <div className="flex items-center justify-between bg-[#1c1f2d] border border-[#3c4a42]/20 rounded-xl p-3.5">
+            <div className="flex items-center justify-between bg-[#1c1f2d] border border-[#2a324b]/20 rounded-xl p-3.5">
               <span className="text-xs font-bold text-white uppercase tracking-wider">Studio Sidebar</span>
               <button
                 onClick={() => setSidebarCollapsed(true)}
-                className="text-[#bbcabf] hover:text-white transition p-1"
+                className="text-[#c4cbdf] hover:text-white transition p-1"
                 title="Collapse sidebar"
               >
                 ◀ Collapsible
@@ -1030,15 +1009,15 @@ Created on TermShield Invoice Studio.`;
             </div>
 
             {/* Navigation tabs inside Sidebar */}
-            <div className="grid grid-cols-4 gap-1.5 p-1 rounded-xl bg-[#1c1f2d] border border-[#3c4a42]/15">
+            <div className="grid grid-cols-4 gap-1.5 p-1 rounded-xl bg-[#1c1f2d] border border-[#2a324b]/15">
               {(["items", "client", "project", "settings", "bookmarks", "templates", "history"] as const).map(tab => (
                 <button
                   key={tab}
                   onClick={() => setActiveSidebarTab(tab)}
                   className={`py-1.5 text-[10px] font-bold rounded-lg uppercase tracking-wider transition-all ${
                     activeSidebarTab === tab
-                      ? "bg-[#4edea3]/15 text-[#4edea3] border border-[#4edea3]/20"
-                      : "text-[#bbcabf] hover:text-white"
+                      ? "bg-[#3b82f6]/15 text-[#3b82f6] border border-[#3b82f6]/20"
+                      : "text-[#c4cbdf] hover:text-white"
                   }`}
                 >
                   {tab.substring(0, 3)}
@@ -1047,22 +1026,22 @@ Created on TermShield Invoice Studio.`;
             </div>
 
             {/* Dynamic Sidebar Content Box */}
-            <div className="glass-card rounded-2xl border border-[#3c4a42]/15 p-4 space-y-4">
+            <div className="glass-card rounded-2xl border border-[#2a324b]/15 p-4 space-y-4">
               
               {/* SIDEBAR TAB 1: LINE ITEMS & SEARCH */}
               {activeSidebarTab === "items" && (
                 <div className="space-y-4">
-                  <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-[#3c4a42]/20 pb-2">Line Items Center</h3>
+                  <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-[#2a324b]/20 pb-2">Line Items Center</h3>
                   
                   {/* Category Insert Shortcuts */}
                   <div className="space-y-2.5">
-                    <span className="text-[10px] text-[#bbcabf] uppercase font-bold tracking-wider">Quick Add Labor & Cost</span>
+                    <span className="text-[10px] text-[#c4cbdf] uppercase font-bold tracking-wider">Quick Add Labor & Cost</span>
                     <div className="grid grid-cols-2 gap-2">
                       {CATEGORIES.slice(0, 8).map(c => (
                         <button
                           key={c.id}
                           onClick={() => handleAddLineItem(c.id)}
-                          className="px-2.5 py-2 text-left text-xs bg-[#1c1f2d] border border-white/[0.04] rounded-xl text-white hover:border-[#4edea3]/40 hover:bg-[#4edea3]/5 transition-all truncate"
+                          className="px-2.5 py-2 text-left text-xs bg-[#1c1f2d] border border-white/[0.04] rounded-xl text-white hover:border-[#3b82f6]/40 hover:bg-[#3b82f6]/5 transition-all truncate"
                         >
                           {c.label}
                         </button>
@@ -1072,13 +1051,13 @@ Created on TermShield Invoice Studio.`;
 
                   {/* Search and Filters */}
                   <div className="space-y-2 mt-4">
-                    <span className="text-[10px] text-[#bbcabf] uppercase font-bold tracking-wider">Search & Filter Invoices</span>
+                    <span className="text-[10px] text-[#c4cbdf] uppercase font-bold tracking-wider">Search & Filter Invoices</span>
                     <input
                       type="text"
                       placeholder="Search company, invoice..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full bg-[#101320] border border-[#3c4a42]/30 text-sm rounded-xl px-3.5 py-2 focus:border-[#4edea3] focus:outline-none"
+                      className="w-full bg-[#101320] border border-[#2a324b]/30 text-sm rounded-xl px-3.5 py-2 focus:border-[#3b82f6] focus:outline-none"
                     />
                     <div className="grid grid-cols-2 gap-2 mt-2">
                       {["All", "Draft", "Sent", "Paid", "Overdue"].map(st => (
@@ -1087,8 +1066,8 @@ Created on TermShield Invoice Studio.`;
                           onClick={() => setStatusFilter(st)}
                           className={`px-2 py-1 text-[10px] font-bold rounded-lg border uppercase tracking-wider transition ${
                             statusFilter === st
-                              ? "bg-[#4edea3]/10 border-[#4edea3]/30 text-[#4edea3]"
-                              : "bg-[#1c1f2d]/50 border-transparent text-[#bbcabf]"
+                              ? "bg-[#3b82f6]/10 border-[#3b82f6]/30 text-[#3b82f6]"
+                              : "bg-[#1c1f2d]/50 border-transparent text-[#c4cbdf]"
                           }`}
                         >
                           {st}
@@ -1102,7 +1081,7 @@ Created on TermShield Invoice Studio.`;
               {/* SIDEBAR TAB 2: CLIENT CRM */}
               {activeSidebarTab === "client" && (
                 <div className="space-y-4">
-                  <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-[#3c4a42]/20 pb-2">Saved Clients</h3>
+                  <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-[#2a324b]/20 pb-2">Saved Clients</h3>
                   
                   {/* Select Saved Clients */}
                   <div className="space-y-2">
@@ -1112,26 +1091,26 @@ Created on TermShield Invoice Studio.`;
                         onClick={() => handleSelectClient(c)}
                         className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
                           activeInvoice?.client.company === c.company
-                            ? "bg-[#4edea3]/5 border-[#4edea3]/40"
+                            ? "bg-[#3b82f6]/5 border-[#3b82f6]/40"
                             : "bg-[#1c1f2d] border-transparent hover:border-white/[0.1]"
                         }`}
                       >
                         <p className="text-sm font-bold text-white">{c.company}</p>
-                        <p className="text-xs text-[#bbcabf] mt-0.5">{c.name} • {c.email}</p>
+                        <p className="text-xs text-[#c4cbdf] mt-0.5">{c.name} • {c.email}</p>
                       </div>
                     ))}
                   </div>
 
                   {/* Add New Client Form */}
-                  <form onSubmit={handleCreateClient} className="space-y-3 pt-3 border-t border-[#3c4a42]/15">
-                    <span className="text-[10px] text-[#bbcabf] uppercase font-bold tracking-wider block">Add to CRM Clients</span>
+                  <form onSubmit={handleCreateClient} className="space-y-3 pt-3 border-t border-[#2a324b]/15">
+                    <span className="text-[10px] text-[#c4cbdf] uppercase font-bold tracking-wider block">Add to CRM Clients</span>
                     <input
                       type="text"
                       placeholder="Company Name *"
                       required
                       value={newClientForm.company}
                       onChange={e => setNewClientForm({...newClientForm, company: e.target.value})}
-                      className="w-full bg-[#101320] border border-[#3c4a42]/30 text-xs rounded-xl px-3.5 py-2.5 text-white focus:border-[#4edea3] focus:outline-none"
+                      className="w-full bg-[#101320] border border-[#2a324b]/30 text-xs rounded-xl px-3.5 py-2.5 text-white focus:border-[#3b82f6] focus:outline-none"
                     />
                     <input
                       type="text"
@@ -1139,28 +1118,28 @@ Created on TermShield Invoice Studio.`;
                       required
                       value={newClientForm.name}
                       onChange={e => setNewClientForm({...newClientForm, name: e.target.value})}
-                      className="w-full bg-[#101320] border border-[#3c4a42]/30 text-xs rounded-xl px-3.5 py-2.5 text-white focus:border-[#4edea3] focus:outline-none"
+                      className="w-full bg-[#101320] border border-[#2a324b]/30 text-xs rounded-xl px-3.5 py-2.5 text-white focus:border-[#3b82f6] focus:outline-none"
                     />
                     <input
                       type="email"
                       placeholder="Client Email"
                       value={newClientForm.email}
                       onChange={e => setNewClientForm({...newClientForm, email: e.target.value})}
-                      className="w-full bg-[#101320] border border-[#3c4a42]/30 text-xs rounded-xl px-3.5 py-2.5 text-white focus:border-[#4edea3] focus:outline-none"
+                      className="w-full bg-[#101320] border border-[#2a324b]/30 text-xs rounded-xl px-3.5 py-2.5 text-white focus:border-[#3b82f6] focus:outline-none"
                     />
                     <input
                       type="text"
                       placeholder="Tax ID / GSTIN"
                       value={newClientForm.taxId}
                       onChange={e => setNewClientForm({...newClientForm, taxId: e.target.value})}
-                      className="w-full bg-[#101320] border border-[#3c4a42]/30 text-xs rounded-xl px-3.5 py-2.5 text-white focus:border-[#4edea3] focus:outline-none"
+                      className="w-full bg-[#101320] border border-[#2a324b]/30 text-xs rounded-xl px-3.5 py-2.5 text-white focus:border-[#3b82f6] focus:outline-none"
                     />
                     <textarea
                       placeholder="Billing Address"
                       rows={2}
                       value={newClientForm.address}
                       onChange={e => setNewClientForm({...newClientForm, address: e.target.value})}
-                      className="w-full bg-[#101320] border border-[#3c4a42]/30 text-xs rounded-xl px-3.5 py-2.5 text-white focus:border-[#4edea3] focus:outline-none"
+                      className="w-full bg-[#101320] border border-[#2a324b]/30 text-xs rounded-xl px-3.5 py-2.5 text-white focus:border-[#3b82f6] focus:outline-none"
                     />
                     <button
                       type="submit"
@@ -1175,15 +1154,15 @@ Created on TermShield Invoice Studio.`;
               {/* SIDEBAR TAB 3: PROJECT CRM */}
               {activeSidebarTab === "project" && (
                 <div className="space-y-4">
-                  <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-[#3c4a42]/20 pb-2">CRM Projects</h3>
+                  <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-[#2a324b]/20 pb-2">CRM Projects</h3>
                   
                   {/* Link active project */}
                   <div className="space-y-2">
-                    <span className="text-[10px] text-[#bbcabf] uppercase font-bold tracking-wider block">Compare Baseline Budget</span>
+                    <span className="text-[10px] text-[#c4cbdf] uppercase font-bold tracking-wider block">Compare Baseline Budget</span>
                     <select
                       value={selectedProjectId}
                       onChange={e => handleProjectSelectChange(e.target.value)}
-                      className="w-full bg-[#1c1f2d] border border-[#3c4a42]/30 text-xs text-white rounded-xl px-3.5 py-2.5 focus:border-[#4edea3] focus:outline-none"
+                      className="w-full bg-[#1c1f2d] border border-[#2a324b]/30 text-xs text-white rounded-xl px-3.5 py-2.5 focus:border-[#3b82f6] focus:outline-none"
                     >
                       <option value="">Select Project to Compare...</option>
                       {savedProjects.map(p => (
@@ -1201,9 +1180,9 @@ Created on TermShield Invoice Studio.`;
                       return (
                         <div key={p.id} className="p-3 bg-[#1c1f2d] border border-white/[0.04] rounded-xl">
                           <p className="text-xs font-bold text-white">{p.name}</p>
-                          <p className="text-[10px] text-[#bbcabf] mt-0.5">Client: {clientObj?.company || "Unknown"}</p>
+                          <p className="text-[10px] text-[#c4cbdf] mt-0.5">Client: {clientObj?.company || "Unknown"}</p>
                           <div className="flex items-center justify-between mt-2">
-                            <span className="text-[10px] font-semibold text-[#4edea3]">Budget: ₹{p.budget.toLocaleString()}</span>
+                            <span className="text-[10px] font-semibold text-[#3b82f6]">Budget: ₹{p.budget.toLocaleString()}</span>
                             <span className="text-[9px] uppercase tracking-wider text-[#d0bcff] px-2 py-0.5 bg-[#d0bcff]/10 rounded-full border border-[#d0bcff]/15">
                               {p.status}
                             </span>
@@ -1214,21 +1193,21 @@ Created on TermShield Invoice Studio.`;
                   </div>
 
                   {/* Create Project Form */}
-                  <form onSubmit={handleCreateProject} className="space-y-3 pt-3 border-t border-[#3c4a42]/15">
-                    <span className="text-[10px] text-[#bbcabf] uppercase font-bold tracking-wider block">New CRM Project</span>
+                  <form onSubmit={handleCreateProject} className="space-y-3 pt-3 border-t border-[#2a324b]/15">
+                    <span className="text-[10px] text-[#c4cbdf] uppercase font-bold tracking-wider block">New CRM Project</span>
                     <input
                       type="text"
                       placeholder="Project Name *"
                       required
                       value={newProjectForm.name}
                       onChange={e => setNewProjectForm({...newProjectForm, name: e.target.value})}
-                      className="w-full bg-[#101320] border border-[#3c4a42]/30 text-xs rounded-xl px-3.5 py-2.5 text-white focus:border-[#4edea3] focus:outline-none"
+                      className="w-full bg-[#101320] border border-[#2a324b]/30 text-xs rounded-xl px-3.5 py-2.5 text-white focus:border-[#3b82f6] focus:outline-none"
                     />
                     <select
                       value={newProjectForm.clientId}
                       required
                       onChange={e => setNewProjectForm({...newProjectForm, clientId: e.target.value})}
-                      className="w-full bg-[#101320] border border-[#3c4a42]/30 text-xs text-white rounded-xl px-3.5 py-2.5 focus:border-[#4edea3] focus:outline-none"
+                      className="w-full bg-[#101320] border border-[#2a324b]/30 text-xs text-white rounded-xl px-3.5 py-2.5 focus:border-[#3b82f6] focus:outline-none"
                     >
                       <option value="">Select Client *</option>
                       {savedClients.map(c => (
@@ -1241,7 +1220,7 @@ Created on TermShield Invoice Studio.`;
                       required
                       value={newProjectForm.budget || ""}
                       onChange={e => setNewProjectForm({...newProjectForm, budget: Number(e.target.value)})}
-                      className="w-full bg-[#101320] border border-[#3c4a42]/30 text-xs rounded-xl px-3.5 py-2.5 text-white focus:border-[#4edea3] focus:outline-none"
+                      className="w-full bg-[#101320] border border-[#2a324b]/30 text-xs rounded-xl px-3.5 py-2.5 text-white focus:border-[#3b82f6] focus:outline-none"
                     />
                     <button
                       type="submit"
@@ -1256,15 +1235,15 @@ Created on TermShield Invoice Studio.`;
               {/* SIDEBAR TAB 4: TAX & GENERAL SETTINGS */}
               {activeSidebarTab === "settings" && (
                 <div className="space-y-4">
-                  <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-[#3c4a42]/20 pb-2">Global Settings</h3>
+                  <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-[#2a324b]/20 pb-2">Global Settings</h3>
                   
                   {/* Currency Select */}
                   <div className="space-y-1">
-                    <label className="text-[10px] text-[#bbcabf] font-semibold uppercase">Currency Selector</label>
+                    <label className="text-[10px] text-[#c4cbdf] font-semibold uppercase">Currency Selector</label>
                     <select
                       value={activeInvoice?.currency}
                       onChange={e => updateActiveInvoice(inv => ({ ...inv, currency: e.target.value }))}
-                      className="w-full bg-[#101320] border border-[#3c4a42]/30 text-xs text-white rounded-xl px-3 py-2.5 focus:border-[#4edea3] focus:outline-none"
+                      className="w-full bg-[#101320] border border-[#2a324b]/30 text-xs text-white rounded-xl px-3 py-2.5 focus:border-[#3b82f6] focus:outline-none"
                     >
                       <option value="INR">INR (₹) Indian Rupee</option>
                       <option value="USD">USD ($) US Dollar</option>
@@ -1275,14 +1254,14 @@ Created on TermShield Invoice Studio.`;
 
                   {/* Global Tax Settings */}
                   <div className="space-y-1.5 pt-2">
-                    <label className="text-[10px] text-[#bbcabf] font-semibold uppercase">Tax Configuration</label>
+                    <label className="text-[10px] text-[#c4cbdf] font-semibold uppercase">Tax Configuration</label>
                     <div className="grid grid-cols-2 gap-2">
                       <input
                         type="text"
                         placeholder="Label (GST/VAT)"
                         value={activeInvoice?.taxLabel}
                         onChange={e => updateActiveInvoice(inv => ({ ...inv, taxLabel: e.target.value }))}
-                        className="bg-[#101320] border border-[#3c4a42]/30 text-xs rounded-xl px-3 py-2 text-white focus:border-[#4edea3] focus:outline-none"
+                        className="bg-[#101320] border border-[#2a324b]/30 text-xs rounded-xl px-3 py-2 text-white focus:border-[#3b82f6] focus:outline-none"
                       />
                       <input
                         type="number"
@@ -1293,14 +1272,14 @@ Created on TermShield Invoice Studio.`;
                           if (rate < 0 || rate > 100) return inv;
                           return { ...inv, taxRate: rate };
                         })}
-                        className="bg-[#101320] border border-[#3c4a42]/30 text-xs rounded-xl px-3 py-2 text-white focus:border-[#4edea3] focus:outline-none"
+                        className="bg-[#101320] border border-[#2a324b]/30 text-xs rounded-xl px-3 py-2 text-white focus:border-[#3b82f6] focus:outline-none"
                       />
                     </div>
                   </div>
 
                   {/* Global Discount */}
                   <div className="space-y-1 pt-2">
-                    <label className="text-[10px] text-[#bbcabf] font-semibold uppercase">Invoice Discount (%)</label>
+                    <label className="text-[10px] text-[#c4cbdf] font-semibold uppercase">Invoice Discount (%)</label>
                     <input
                       type="number"
                       value={activeInvoice?.overallDiscount || ""}
@@ -1309,15 +1288,15 @@ Created on TermShield Invoice Studio.`;
                         if (disc < 0 || disc > 100) return inv;
                         return { ...inv, overallDiscount: disc };
                       })}
-                      className="w-full bg-[#101320] border border-[#3c4a42]/30 text-xs rounded-xl px-3 py-2 text-white focus:border-[#4edea3] focus:outline-none"
+                      className="w-full bg-[#101320] border border-[#2a324b]/30 text-xs rounded-xl px-3 py-2 text-white focus:border-[#3b82f6] focus:outline-none"
                       placeholder="e.g. 5"
                     />
                   </div>
 
                   {/* Recurring Invoice Option */}
-                  <div className="space-y-2 pt-3 border-t border-[#3c4a42]/15">
+                  <div className="space-y-2 pt-3 border-t border-[#2a324b]/15">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-[#bbcabf] font-semibold uppercase">Recurring Invoice</span>
+                      <span className="text-[10px] text-[#c4cbdf] font-semibold uppercase">Recurring Invoice</span>
                       <input
                         type="checkbox"
                         checked={activeInvoice?.recurring.enabled || false}
@@ -1325,7 +1304,7 @@ Created on TermShield Invoice Studio.`;
                           ...inv,
                           recurring: { ...inv.recurring, enabled: e.target.checked }
                         }))}
-                        className="rounded border-[#3c4a42]/40 accent-[#4edea3] cursor-pointer"
+                        className="rounded border-[#2a324b]/40 accent-[#3b82f6] cursor-pointer"
                       />
                     </div>
 
@@ -1337,7 +1316,7 @@ Created on TermShield Invoice Studio.`;
                             ...inv,
                             recurring: { ...inv.recurring, frequency: e.target.value as any }
                           }))}
-                          className="w-full bg-[#101320] border border-[#3c4a42]/30 text-xs text-white rounded-xl px-3 py-2 focus:border-[#4edea3] focus:outline-none"
+                          className="w-full bg-[#101320] border border-[#2a324b]/30 text-xs text-white rounded-xl px-3 py-2 focus:border-[#3b82f6] focus:outline-none"
                         >
                           <option value="Weekly">Weekly Cycle</option>
                           <option value="Monthly">Monthly Cycle</option>
@@ -1350,7 +1329,7 @@ Created on TermShield Invoice Studio.`;
                             ...inv,
                             recurring: { ...inv.recurring, nextDate: e.target.value }
                           }))}
-                          className="w-full bg-[#101320] border border-[#3c4a42]/30 text-xs text-white rounded-xl px-3 py-2 focus:border-[#4edea3] focus:outline-none"
+                          className="w-full bg-[#101320] border border-[#2a324b]/30 text-xs text-white rounded-xl px-3 py-2 focus:border-[#3b82f6] focus:outline-none"
                         />
                       </div>
                     )}
@@ -1361,19 +1340,19 @@ Created on TermShield Invoice Studio.`;
               {/* SIDEBAR TAB 5: BOOKMARKS */}
               {activeSidebarTab === "bookmarks" && (
                 <div className="space-y-4">
-                  <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-[#3c4a42]/20 pb-2">Bookmarked Line Items</h3>
+                  <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-[#2a324b]/20 pb-2">Bookmarked Line Items</h3>
                   {bookmarkedItems.length === 0 ? (
-                    <p className="text-xs text-[#bbcabf]/60 text-center py-4">No starred items yet. Click the star icon on any line item to save here.</p>
+                    <p className="text-xs text-[#c4cbdf]/60 text-center py-4">No starred items yet. Click the star icon on any line item to save here.</p>
                   ) : (
                     <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
                       {bookmarkedItems.map(bm => (
                         <div
                           key={bm.id}
-                          className="p-3 bg-[#1c1f2d] border border-white/[0.04] rounded-xl hover:border-[#4edea3]/30 transition group flex flex-col justify-between"
+                          className="p-3 bg-[#1c1f2d] border border-white/[0.04] rounded-xl hover:border-[#3b82f6]/30 transition group flex flex-col justify-between"
                         >
                           <div>
                             <div className="flex items-center justify-between">
-                              <span className="text-[10px] font-bold uppercase text-[#4edea3]">{bm.category}</span>
+                              <span className="text-[10px] font-bold uppercase text-[#3b82f6]">{bm.category}</span>
                               <button
                                 onClick={() => handleDeleteBookmark(bm.id)}
                                 className="text-xs text-[#ffb4ab] opacity-0 group-hover:opacity-100 transition"
@@ -1383,14 +1362,14 @@ Created on TermShield Invoice Studio.`;
                               </button>
                             </div>
                             <p className="text-xs font-semibold text-white mt-1">{bm.title}</p>
-                            <p className="text-[10px] text-[#bbcabf]/75 mt-0.5 line-clamp-1">{bm.description}</p>
+                            <p className="text-[10px] text-[#c4cbdf]/75 mt-0.5 line-clamp-1">{bm.description}</p>
                           </div>
                           
                           <div className="flex items-center justify-between mt-3 pt-2 border-t border-white/[0.03]">
-                            <span className="text-[10px] text-[#bbcabf] font-bold">{currencySymbol}{bm.rate.toLocaleString()} / {bm.unit}</span>
+                            <span className="text-[10px] text-[#c4cbdf] font-bold">{currencySymbol}{bm.rate.toLocaleString()} / {bm.unit}</span>
                             <button
                               onClick={() => handleAddBookmarkToInvoice(bm)}
-                              className="px-2 py-0.5 bg-[#4edea3]/10 border border-[#4edea3]/20 rounded text-[9px] font-bold text-[#4edea3] hover:bg-[#4edea3]/20 transition"
+                              className="px-2 py-0.5 bg-[#3b82f6]/10 border border-[#3b82f6]/20 rounded text-[9px] font-bold text-[#3b82f6] hover:bg-[#3b82f6]/20 transition"
                             >
                               + Add to Invoice
                             </button>
@@ -1405,32 +1384,32 @@ Created on TermShield Invoice Studio.`;
               {/* SIDEBAR TAB 6: PRE-FILLED TEMPLATES */}
               {activeSidebarTab === "templates" && (
                 <div className="space-y-4">
-                  <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-[#3c4a42]/20 pb-2">Billing Templates</h3>
-                  <p className="text-[10px] text-[#bbcabf]">Warning: Loading a template will overwrite current line items.</p>
+                  <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-[#2a324b]/20 pb-2">Billing Templates</h3>
+                  <p className="text-[10px] text-[#c4cbdf]">Warning: Loading a template will overwrite current line items.</p>
                   
                   <div className="space-y-2.5">
                     <button
                       onClick={() => handleLoadTemplate("web-dev")}
-                      className="w-full text-left p-3.5 bg-[#1c1f2d] border border-white/[0.04] rounded-xl hover:border-[#4edea3]/40 transition group"
+                      className="w-full text-left p-3.5 bg-[#1c1f2d] border border-white/[0.04] rounded-xl hover:border-[#3b82f6]/40 transition group"
                     >
-                      <p className="text-xs font-bold text-white group-hover:text-[#4edea3]">Full-Stack Web Dev MVP</p>
-                      <p className="text-[10px] text-[#bbcabf] mt-0.5">Development (80h) + UI Design (20h)</p>
+                      <p className="text-xs font-bold text-white group-hover:text-[#3b82f6]">Full-Stack Web Dev MVP</p>
+                      <p className="text-[10px] text-[#c4cbdf] mt-0.5">Development (80h) + UI Design (20h)</p>
                     </button>
 
                     <button
                       onClick={() => handleLoadTemplate("retainer")}
-                      className="w-full text-left p-3.5 bg-[#1c1f2d] border border-white/[0.04] rounded-xl hover:border-[#4edea3]/40 transition group"
+                      className="w-full text-left p-3.5 bg-[#1c1f2d] border border-white/[0.04] rounded-xl hover:border-[#3b82f6]/40 transition group"
                     >
-                      <p className="text-xs font-bold text-white group-hover:text-[#4edea3]">Monthly Agency Retainer</p>
-                      <p className="text-[10px] text-[#bbcabf] mt-0.5">Fixed Support SLA + hosting config</p>
+                      <p className="text-xs font-bold text-white group-hover:text-[#3b82f6]">Monthly Agency Retainer</p>
+                      <p className="text-[10px] text-[#c4cbdf] mt-0.5">Fixed Support SLA + hosting config</p>
                     </button>
 
                     <button
                       onClick={() => handleLoadTemplate("consulting")}
-                      className="w-full text-left p-3.5 bg-[#1c1f2d] border border-white/[0.04] rounded-xl hover:border-[#4edea3]/40 transition group"
+                      className="w-full text-left p-3.5 bg-[#1c1f2d] border border-white/[0.04] rounded-xl hover:border-[#3b82f6]/40 transition group"
                     >
-                      <p className="text-xs font-bold text-white group-hover:text-[#4edea3]">Advisory & System Audit</p>
-                      <p className="text-[10px] text-[#bbcabf] mt-0.5">System audit hours (10h @ ₹4,000)</p>
+                      <p className="text-xs font-bold text-white group-hover:text-[#3b82f6]">Advisory & System Audit</p>
+                      <p className="text-[10px] text-[#c4cbdf] mt-0.5">System audit hours (10h @ ₹4,000)</p>
                     </button>
                   </div>
                 </div>
@@ -1439,15 +1418,15 @@ Created on TermShield Invoice Studio.`;
               {/* SIDEBAR TAB 7: INVOICE LOG HISTORY */}
               {activeSidebarTab === "history" && (
                 <div className="space-y-4">
-                  <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-[#3c4a42]/20 pb-2">Studio Logs</h3>
+                  <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-[#2a324b]/20 pb-2">Studio Logs</h3>
                   {historyLogs.length === 0 ? (
-                    <p className="text-xs text-[#bbcabf]/60 text-center py-4">No events logged yet. Edit sheets to track modifications.</p>
+                    <p className="text-xs text-[#c4cbdf]/60 text-center py-4">No events logged yet. Edit sheets to track modifications.</p>
                   ) : (
                     <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
                       {historyLogs.map(log => (
-                        <div key={log.id} className="text-[10px] border-b border-[#3c4a42]/10 pb-2">
-                          <p className="text-[#bbcabf] font-semibold">{log.message}</p>
-                          <p className="text-[#bbcabf]/60 mt-0.5">{log.timestamp}</p>
+                        <div key={log.id} className="text-[10px] border-b border-[#2a324b]/10 pb-2">
+                          <p className="text-[#c4cbdf] font-semibold">{log.message}</p>
+                          <p className="text-[#c4cbdf]/60 mt-0.5">{log.timestamp}</p>
                         </div>
                       ))}
                     </div>
@@ -1465,18 +1444,18 @@ Created on TermShield Invoice Studio.`;
             {sidebarCollapsed && (
               <button
                 onClick={() => setSidebarCollapsed(false)}
-                className="no-print inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1c1f2d] border border-[#3c4a42]/20 rounded-xl text-xs font-semibold text-[#4edea3] hover:bg-[#4edea3]/10 transition-all"
+                className="no-print inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1c1f2d] border border-[#2a324b]/20 rounded-xl text-xs font-semibold text-[#3b82f6] hover:bg-[#3b82f6]/10 transition-all"
               >
                 ▶ Expand Studio Sidebar
               </button>
             )}
 
             {/* Config & Import/Export Panel */}
-            <section className="no-print glass-card rounded-2xl border border-[#3c4a42]/15 p-4 flex flex-wrap items-center justify-between gap-4">
+            <section className="no-print glass-card rounded-2xl border border-[#2a324b]/15 p-4 flex flex-wrap items-center justify-between gap-4">
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={handleDuplicateInvoice}
-                  className="px-4 py-2 bg-[#1c1f2d] border border-white/[0.04] rounded-full text-xs font-bold hover:text-[#4edea3] hover:border-[#4edea3]/20 transition"
+                  className="px-4 py-2 bg-[#1c1f2d] border border-white/[0.04] rounded-full text-xs font-bold hover:text-[#3b82f6] hover:border-[#3b82f6]/20 transition"
                 >
                   Duplicate Tab
                 </button>
@@ -1519,34 +1498,34 @@ Created on TermShield Invoice Studio.`;
 
             {/* INVOICE SHEET DESIGN */}
             {activeInvoice ? (
-              <section className="glass-card rounded-3xl border border-[#3c4a42]/15 p-6 lg:p-8 space-y-8 print:bg-white print:border-none print:shadow-none print:text-black">
+              <section className="glass-card rounded-3xl border border-[#2a324b]/15 p-6 lg:p-8 space-y-8 print:bg-white print:border-none print:shadow-none print:text-black">
                 
                 {/* Header Information */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-[#3c4a42]/15">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-[#2a324b]/15">
                   <div className="space-y-4">
                     {/* Invoice title input */}
                     <input
                       type="text"
                       value={activeInvoice.title}
                       onChange={e => updateActiveInvoice(inv => ({ ...inv, title: e.target.value }))}
-                      className="w-full bg-transparent border-b border-transparent hover:border-white/[0.1] focus:border-[#4edea3] text-2xl font-bold text-white focus:outline-none py-1 print:text-black"
+                      className="w-full bg-transparent border-b border-transparent hover:border-white/[0.1] focus:border-[#3b82f6] text-2xl font-bold text-white focus:outline-none py-1 print:text-black"
                       placeholder="Invoice Title"
                     />
 
                     {/* Invoice code & Status */}
                     <div className="flex flex-wrap items-center gap-4">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-[#bbcabf] font-semibold">Invoice No:</span>
+                        <span className="text-xs text-[#c4cbdf] font-semibold">Invoice No:</span>
                         <input
                           type="text"
                           value={activeInvoice.invoiceNumber}
                           onChange={e => updateActiveInvoice(inv => ({ ...inv, invoiceNumber: e.target.value }))}
-                          className="bg-[#1c1f2d]/50 border border-[#3c4a42]/30 text-xs font-bold rounded-lg px-2.5 py-1 text-white focus:border-[#4edea3] focus:outline-none print:text-black print:bg-transparent print:border-none"
+                          className="bg-[#1c1f2d]/50 border border-[#2a324b]/30 text-xs font-bold rounded-lg px-2.5 py-1 text-white focus:border-[#3b82f6] focus:outline-none print:text-black print:bg-transparent print:border-none"
                         />
                       </div>
 
                       <div className="flex items-center gap-2 no-print">
-                        <span className="text-xs text-[#bbcabf] font-semibold">Status:</span>
+                        <span className="text-xs text-[#c4cbdf] font-semibold">Status:</span>
                         <select
                           value={activeInvoice.status}
                           onChange={e => {
@@ -1557,9 +1536,9 @@ Created on TermShield Invoice Studio.`;
                           }}
                           className={`text-xs font-bold rounded-lg border px-2 py-0.5 outline-none bg-[#101320] ${
                             activeInvoice.status === "Paid" 
-                              ? "text-[#4edea3] border-[#4edea3]/30" 
+                              ? "text-[#3b82f6] border-[#3b82f6]/30" 
                               : activeInvoice.status === "Draft" 
-                              ? "text-[#bbcabf] border-white/10" 
+                              ? "text-[#c4cbdf] border-white/10" 
                               : activeInvoice.status === "Sent" 
                               ? "text-[#d0bcff] border-[#d0bcff]/30" 
                               : "text-[#ffb4ab] border-[#ffb4ab]/30"
@@ -1582,42 +1561,42 @@ Created on TermShield Invoice Studio.`;
                   {/* Dates & Currency Box */}
                   <div className="grid grid-cols-2 gap-4 md:justify-items-end">
                     <div className="space-y-1.5 md:text-right">
-                      <label className="text-[10px] text-[#bbcabf] uppercase font-bold tracking-wider block">Issue Date</label>
+                      <label className="text-[10px] text-[#c4cbdf] uppercase font-bold tracking-wider block">Issue Date</label>
                       <input
                         type="date"
                         value={activeInvoice.issueDate}
                         onChange={e => updateActiveInvoice(inv => ({ ...inv, issueDate: e.target.value }))}
-                        className="bg-[#1c1f2d]/50 border border-[#3c4a42]/30 text-xs rounded-xl px-3 py-2 text-white focus:border-[#4edea3] focus:outline-none print:text-black print:bg-transparent print:border-none"
+                        className="bg-[#1c1f2d]/50 border border-[#2a324b]/30 text-xs rounded-xl px-3 py-2 text-white focus:border-[#3b82f6] focus:outline-none print:text-black print:bg-transparent print:border-none"
                       />
                     </div>
                     <div className="space-y-1.5 md:text-right">
-                      <label className="text-[10px] text-[#bbcabf] uppercase font-bold tracking-wider block">Due Date</label>
+                      <label className="text-[10px] text-[#c4cbdf] uppercase font-bold tracking-wider block">Due Date</label>
                       <input
                         type="date"
                         value={activeInvoice.dueDate}
                         onChange={e => updateActiveInvoice(inv => ({ ...inv, dueDate: e.target.value }))}
-                        className="bg-[#1c1f2d]/50 border border-[#3c4a42]/30 text-xs rounded-xl px-3 py-2 text-white focus:border-[#4edea3] focus:outline-none print:text-black print:bg-transparent print:border-none"
+                        className="bg-[#1c1f2d]/50 border border-[#2a324b]/30 text-xs rounded-xl px-3 py-2 text-white focus:border-[#3b82f6] focus:outline-none print:text-black print:bg-transparent print:border-none"
                       />
                     </div>
                   </div>
                 </div>
 
                 {/* Freelancer & Client details section */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-2 border-b border-[#3c4a42]/10">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-2 border-b border-[#2a324b]/10">
                   
                   {/* Freelancer Details Panel */}
                   <div className="space-y-3">
-                    <span className="text-[10px] text-[#4edea3] uppercase font-bold tracking-wider block">Sender / Freelancer</span>
+                    <span className="text-[10px] text-[#3b82f6] uppercase font-bold tracking-wider block">Sender / Freelancer</span>
                     <div className="space-y-2">
                       <input
                         type="text"
-                        placeholder="Freelancer Full Name"
+                        placeholder="Type Name"
                         value={activeInvoice.freelancer.name}
                         onChange={e => updateActiveInvoice(inv => ({
                           ...inv,
                           freelancer: { ...inv.freelancer, name: e.target.value }
                         }))}
-                        className="w-full bg-transparent border-b border-transparent hover:border-white/[0.06] focus:border-[#4edea3] text-sm font-semibold text-white focus:outline-none print:text-black"
+                        className="w-full bg-transparent border-b border-transparent hover:border-white/[0.06] focus:border-[#3b82f6] text-sm font-semibold text-white focus:outline-none print:text-black"
                       />
                       <input
                         type="email"
@@ -1627,7 +1606,7 @@ Created on TermShield Invoice Studio.`;
                           ...inv,
                           freelancer: { ...inv.freelancer, email: e.target.value }
                         }))}
-                        className="w-full bg-transparent border-b border-transparent hover:border-white/[0.06] focus:border-[#4edea3] text-xs text-[#bbcabf] focus:outline-none print:text-black"
+                        className="w-full bg-transparent border-b border-transparent hover:border-white/[0.06] focus:border-[#3b82f6] text-xs text-[#c4cbdf] focus:outline-none print:text-black"
                       />
                       <input
                         type="text"
@@ -1637,7 +1616,7 @@ Created on TermShield Invoice Studio.`;
                           ...inv,
                           freelancer: { ...inv.freelancer, company: e.target.value }
                         }))}
-                        className="w-full bg-transparent border-b border-transparent hover:border-white/[0.06] focus:border-[#4edea3] text-xs text-[#bbcabf] focus:outline-none print:text-black"
+                        className="w-full bg-transparent border-b border-transparent hover:border-white/[0.06] focus:border-[#3b82f6] text-xs text-[#c4cbdf] focus:outline-none print:text-black"
                       />
                       <input
                         type="text"
@@ -1647,7 +1626,7 @@ Created on TermShield Invoice Studio.`;
                           ...inv,
                           freelancer: { ...inv.freelancer, taxId: e.target.value }
                         }))}
-                        className="w-full bg-transparent border-b border-transparent hover:border-white/[0.06] focus:border-[#4edea3] text-xs text-[#bbcabf] focus:outline-none print:text-black"
+                        className="w-full bg-transparent border-b border-transparent hover:border-white/[0.06] focus:border-[#3b82f6] text-xs text-[#c4cbdf] focus:outline-none print:text-black"
                       />
                       <textarea
                         placeholder="Address"
@@ -1657,7 +1636,7 @@ Created on TermShield Invoice Studio.`;
                           ...inv,
                           freelancer: { ...inv.freelancer, address: e.target.value }
                         }))}
-                        className="w-full bg-transparent border-b border-transparent hover:border-white/[0.06] focus:border-[#4edea3] text-xs text-[#bbcabf] focus:outline-none print:text-black"
+                        className="w-full bg-transparent border-b border-transparent hover:border-white/[0.06] focus:border-[#3b82f6] text-xs text-[#c4cbdf] focus:outline-none print:text-black"
                       />
                     </div>
                   </div>
@@ -1674,7 +1653,7 @@ Created on TermShield Invoice Studio.`;
                           ...inv,
                           client: { ...inv.client, company: e.target.value }
                         }))}
-                        className="w-full bg-transparent border-b border-transparent hover:border-white/[0.06] focus:border-[#4edea3] text-sm font-semibold text-white focus:outline-none print:text-black"
+                        className="w-full bg-transparent border-b border-transparent hover:border-white/[0.06] focus:border-[#3b82f6] text-sm font-semibold text-white focus:outline-none print:text-black"
                       />
                       <input
                         type="text"
@@ -1684,7 +1663,7 @@ Created on TermShield Invoice Studio.`;
                           ...inv,
                           client: { ...inv.client, name: e.target.value }
                         }))}
-                        className="w-full bg-transparent border-b border-transparent hover:border-white/[0.06] focus:border-[#4edea3] text-xs text-[#bbcabf] focus:outline-none print:text-black"
+                        className="w-full bg-transparent border-b border-transparent hover:border-white/[0.06] focus:border-[#3b82f6] text-xs text-[#c4cbdf] focus:outline-none print:text-black"
                       />
                       <input
                         type="email"
@@ -1694,7 +1673,7 @@ Created on TermShield Invoice Studio.`;
                           ...inv,
                           client: { ...inv.client, email: e.target.value }
                         }))}
-                        className="w-full bg-transparent border-b border-transparent hover:border-white/[0.06] focus:border-[#4edea3] text-xs text-[#bbcabf] focus:outline-none print:text-black"
+                        className="w-full bg-transparent border-b border-transparent hover:border-white/[0.06] focus:border-[#3b82f6] text-xs text-[#c4cbdf] focus:outline-none print:text-black"
                       />
                       <input
                         type="text"
@@ -1704,7 +1683,7 @@ Created on TermShield Invoice Studio.`;
                           ...inv,
                           client: { ...inv.client, taxId: e.target.value }
                         }))}
-                        className="w-full bg-transparent border-b border-transparent hover:border-white/[0.06] focus:border-[#4edea3] text-xs text-[#bbcabf] focus:outline-none print:text-black"
+                        className="w-full bg-transparent border-b border-transparent hover:border-white/[0.06] focus:border-[#3b82f6] text-xs text-[#c4cbdf] focus:outline-none print:text-black"
                       />
                       <textarea
                         placeholder="Billing Address"
@@ -1714,7 +1693,7 @@ Created on TermShield Invoice Studio.`;
                           ...inv,
                           client: { ...inv.client, address: e.target.value }
                         }))}
-                        className="w-full bg-transparent border-b border-transparent hover:border-white/[0.06] focus:border-[#4edea3] text-xs text-[#bbcabf] focus:outline-none print:text-black"
+                        className="w-full bg-transparent border-b border-transparent hover:border-white/[0.06] focus:border-[#3b82f6] text-xs text-[#c4cbdf] focus:outline-none print:text-black"
                       />
                     </div>
                   </div>
@@ -1724,21 +1703,21 @@ Created on TermShield Invoice Studio.`;
                 {/* LINE ITEMS LIST */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-[#bbcabf] uppercase font-bold tracking-wider">Line Items breakdown</span>
+                    <span className="text-[10px] text-[#c4cbdf] uppercase font-bold tracking-wider">Line Items breakdown</span>
                     <button
                       onClick={() => handleAddLineItem("labor")}
-                      className="no-print px-3 py-1 bg-[#4edea3]/10 border border-[#4edea3]/20 rounded-lg text-xs font-bold text-[#4edea3] hover:bg-[#4edea3]/20 transition"
+                      className="no-print px-3 py-1 bg-[#3b82f6]/10 border border-[#3b82f6]/20 rounded-lg text-xs font-bold text-[#3b82f6] hover:bg-[#3b82f6]/20 transition"
                     >
                       + Add Item
                     </button>
                   </div>
 
                   {activeInvoice.items.length === 0 ? (
-                    <div className="p-8 text-center bg-[#1c1f2d]/50 border border-dashed border-[#3c4a42]/20 rounded-2xl">
-                      <p className="text-sm text-[#bbcabf]">No line items added yet.</p>
+                    <div className="p-8 text-center bg-[#1c1f2d]/50 border border-dashed border-[#2a324b]/20 rounded-2xl">
+                      <p className="text-sm text-[#c4cbdf]">No line items added yet.</p>
                       <button
                         onClick={() => handleAddLineItem("labor")}
-                        className="mt-3 px-4 py-1.5 bg-[#4edea3] text-[#003824] rounded-full text-xs font-bold hover:opacity-90 transition"
+                        className="mt-3 px-4 py-1.5 bg-[#3b82f6] text-[#003824] rounded-full text-xs font-bold hover:opacity-90 transition"
                       >
                         Create First Item
                       </button>
@@ -1757,7 +1736,7 @@ Created on TermShield Invoice Studio.`;
                             <select
                               value={item.category}
                               onChange={e => handleUpdateLineItem(item.id, "category", e.target.value)}
-                              className="bg-[#101320] border border-[#3c4a42]/30 text-xs text-white rounded-lg px-2.5 py-1.5 focus:border-[#4edea3] focus:outline-none print:text-black print:bg-transparent print:border-none"
+                              className="bg-[#101320] border border-[#2a324b]/30 text-xs text-white rounded-lg px-2.5 py-1.5 focus:border-[#3b82f6] focus:outline-none print:text-black print:bg-transparent print:border-none"
                             >
                               {CATEGORIES.map(cat => (
                                 <option key={cat.id} value={cat.id}>{cat.label}</option>
@@ -1770,7 +1749,7 @@ Created on TermShield Invoice Studio.`;
                               value={item.title}
                               onChange={e => handleUpdateLineItem(item.id, "title", e.target.value)}
                               placeholder="Title of deliverable/service"
-                              className="bg-[#101320]/30 hover:bg-[#101320]/65 focus:bg-[#101320]/80 border border-transparent focus:border-[#4edea3]/40 text-sm font-semibold rounded-lg px-3 py-1.5 text-white focus:outline-none print:text-black print:border-none"
+                              className="bg-[#101320]/30 hover:bg-[#101320]/65 focus:bg-[#101320]/80 border border-transparent focus:border-[#3b82f6]/40 text-sm font-semibold rounded-lg px-3 py-1.5 text-white focus:outline-none print:text-black print:border-none"
                             />
 
                             {/* Item Actions */}
@@ -1778,7 +1757,7 @@ Created on TermShield Invoice Studio.`;
                               <button
                                 onClick={() => handleMoveLineItem(idx, "up")}
                                 disabled={idx === 0}
-                                className="p-1 text-[#bbcabf] hover:text-white disabled:opacity-20"
+                                className="p-1 text-[#c4cbdf] hover:text-white disabled:opacity-20"
                                 title="Move Up"
                               >
                                 ▲
@@ -1786,7 +1765,7 @@ Created on TermShield Invoice Studio.`;
                               <button
                                 onClick={() => handleMoveLineItem(idx, "down")}
                                 disabled={idx === activeInvoice.items.length - 1}
-                                className="p-1 text-[#bbcabf] hover:text-white disabled:opacity-20"
+                                className="p-1 text-[#c4cbdf] hover:text-white disabled:opacity-20"
                                 title="Move Down"
                               >
                                 ▼
@@ -1820,53 +1799,53 @@ Created on TermShield Invoice Studio.`;
                             
                             {/* Quantity */}
                             <div className="space-y-1">
-                              <label className="text-[9px] uppercase font-bold text-[#bbcabf]">Qty</label>
+                              <label className="text-[9px] uppercase font-bold text-[#c4cbdf]">Qty</label>
                               <input
                                 type="number"
                                 value={item.quantity || ""}
                                 onChange={e => handleUpdateLineItem(item.id, "quantity", Number(e.target.value))}
-                                className="w-full bg-[#101320] border border-[#3c4a42]/20 text-xs rounded-lg px-2 py-1 text-white focus:border-[#4edea3] focus:outline-none print:text-black print:bg-transparent"
+                                className="w-full bg-[#101320] border border-[#2a324b]/20 text-xs rounded-lg px-2 py-1 text-white focus:border-[#3b82f6] focus:outline-none print:text-black print:bg-transparent"
                               />
                             </div>
 
                             {/* Unit */}
                             <div className="space-y-1">
-                              <label className="text-[9px] uppercase font-bold text-[#bbcabf]">Unit</label>
+                              <label className="text-[9px] uppercase font-bold text-[#c4cbdf]">Unit</label>
                               <input
                                 type="text"
                                 value={item.unit}
                                 onChange={e => handleUpdateLineItem(item.id, "unit", e.target.value)}
                                 placeholder="hours"
-                                className="w-full bg-[#101320] border border-[#3c4a42]/20 text-xs rounded-lg px-2 py-1 text-white focus:border-[#4edea3] focus:outline-none print:text-black print:bg-transparent"
+                                className="w-full bg-[#101320] border border-[#2a324b]/20 text-xs rounded-lg px-2 py-1 text-white focus:border-[#3b82f6] focus:outline-none print:text-black print:bg-transparent"
                               />
                             </div>
 
                             {/* Rate */}
                             <div className="space-y-1">
-                              <label className="text-[9px] uppercase font-bold text-[#bbcabf]">Rate ({currencySymbol})</label>
+                              <label className="text-[9px] uppercase font-bold text-[#c4cbdf]">Rate ({currencySymbol})</label>
                               <input
                                 type="number"
                                 value={item.rate || ""}
                                 onChange={e => handleUpdateLineItem(item.id, "rate", Number(e.target.value))}
-                                className="w-full bg-[#101320] border border-[#3c4a42]/20 text-xs rounded-lg px-2 py-1 text-white focus:border-[#4edea3] focus:outline-none print:text-black print:bg-transparent"
+                                className="w-full bg-[#101320] border border-[#2a324b]/20 text-xs rounded-lg px-2 py-1 text-white focus:border-[#3b82f6] focus:outline-none print:text-black print:bg-transparent"
                               />
                             </div>
 
                             {/* Item Discount */}
                             <div className="space-y-1">
-                              <label className="text-[9px] uppercase font-bold text-[#bbcabf]">Discount %</label>
+                              <label className="text-[9px] uppercase font-bold text-[#c4cbdf]">Discount %</label>
                               <input
                                 type="number"
                                 value={item.discount || ""}
                                 onChange={e => handleUpdateLineItem(item.id, "discount", Number(e.target.value))}
                                 placeholder="0%"
-                                className="w-full bg-[#101320] border border-[#3c4a42]/20 text-xs rounded-lg px-2 py-1 text-white focus:border-[#4edea3] focus:outline-none print:text-black print:bg-transparent"
+                                className="w-full bg-[#101320] border border-[#2a324b]/20 text-xs rounded-lg px-2 py-1 text-white focus:border-[#3b82f6] focus:outline-none print:text-black print:bg-transparent"
                               />
                             </div>
 
                             {/* Line Subtotal Display */}
                             <div className="space-y-1 text-right self-end pb-1 pr-1">
-                              <span className="text-[10px] uppercase font-bold text-[#bbcabf] block">Line total</span>
+                              <span className="text-[10px] uppercase font-bold text-[#c4cbdf] block">Line total</span>
                               <span className="text-sm font-bold text-white print:text-black">
                                 {currencySymbol}
                                 {(
@@ -1885,18 +1864,18 @@ Created on TermShield Invoice Studio.`;
                               value={item.description}
                               onChange={e => handleUpdateLineItem(item.id, "description", e.target.value)}
                               placeholder="Add brief deliverable description..."
-                              className="w-full bg-transparent border-b border-transparent hover:border-white/[0.05] focus:border-[#4edea3]/30 text-xs text-[#bbcabf] focus:outline-none py-0.5 print:text-black print:border-none"
+                              className="w-full bg-transparent border-b border-transparent hover:border-white/[0.05] focus:border-[#3b82f6]/30 text-xs text-[#c4cbdf] focus:outline-none py-0.5 print:text-black print:border-none"
                             />
 
                             {/* Frameworks tags UI */}
                             <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                              <span className="text-[8px] uppercase tracking-wider font-bold text-[#bbcabf]/75">Frameworks:</span>
+                              <span className="text-[8px] uppercase tracking-wider font-bold text-[#c4cbdf]/75">Frameworks:</span>
                               
                               {/* Existing Tags */}
                               {item.frameworks.map(tag => (
                                 <span
                                   key={tag}
-                                  className="inline-flex items-center gap-1 text-[9px] font-semibold bg-[#4edea3]/5 text-[#4edea3] border border-[#4edea3]/20 px-2 py-0.5 rounded-full"
+                                  className="inline-flex items-center gap-1 text-[9px] font-semibold bg-[#3b82f6]/5 text-[#3b82f6] border border-[#3b82f6]/20 px-2 py-0.5 rounded-full"
                                 >
                                   {tag}
                                   <button
@@ -1915,7 +1894,7 @@ Created on TermShield Invoice Studio.`;
                                     handleAddFrameworkToItem(item.id, e.target.value);
                                     e.target.value = "";
                                   }}
-                                  className="bg-[#101320] border border-[#3c4a42]/30 text-[9px] text-[#bbcabf] rounded px-1.5 py-0.5 focus:outline-none"
+                                  className="bg-[#101320] border border-[#2a324b]/30 text-[9px] text-[#c4cbdf] rounded px-1.5 py-0.5 focus:outline-none"
                                 >
                                   <option value="">+ Tag</option>
                                   {FRAMEWORK_PRESETS.map(f => (
@@ -1933,71 +1912,71 @@ Created on TermShield Invoice Studio.`;
                 </div>
 
                 {/* BOTTOM SUMMARY & EXTRA CRM DATA */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-6 border-t border-[#3c4a42]/15">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-6 border-t border-[#2a324b]/15">
                   
                   {/* Left Column: Notes, Terms & Margin Gauge */}
                   <div className="space-y-5">
                     
                     {/* Notes */}
                     <div className="space-y-1.5">
-                      <label className="text-[10px] text-[#bbcabf] uppercase font-bold tracking-wider block">Invoice Notes</label>
+                      <label className="text-[10px] text-[#c4cbdf] uppercase font-bold tracking-wider block">Invoice Notes</label>
                       <textarea
                         rows={3}
                         value={activeInvoice.notes}
                         onChange={e => updateActiveInvoice(inv => ({ ...inv, notes: e.target.value }))}
-                        className="w-full bg-[#1c1f2d] border border-[#3c4a42]/30 text-xs rounded-xl px-3.5 py-2.5 text-[#e0e1f5] focus:border-[#4edea3] focus:outline-none print:bg-transparent print:border-none print:text-black"
+                        className="w-full bg-[#1c1f2d] border border-[#2a324b]/30 text-xs rounded-xl px-3.5 py-2.5 text-[#e0e1f5] focus:border-[#3b82f6] focus:outline-none print:bg-transparent print:border-none print:text-black"
                         placeholder="Add generic notes here..."
                       />
                     </div>
 
                     {/* Payment Terms */}
                     <div className="space-y-1.5">
-                      <label className="text-[10px] text-[#bbcabf] uppercase font-bold tracking-wider block">Payment Terms & Instructions</label>
+                      <label className="text-[10px] text-[#c4cbdf] uppercase font-bold tracking-wider block">Payment Terms & Instructions</label>
                       <textarea
                         rows={2}
                         value={activeInvoice.paymentTerms}
                         onChange={e => updateActiveInvoice(inv => ({ ...inv, paymentTerms: e.target.value }))}
-                        className="w-full bg-[#1c1f2d] border border-[#3c4a42]/30 text-xs rounded-xl px-3.5 py-2.5 text-[#e0e1f5] focus:border-[#4edea3] focus:outline-none print:bg-transparent print:border-none print:text-black"
+                        className="w-full bg-[#1c1f2d] border border-[#2a324b]/30 text-xs rounded-xl px-3.5 py-2.5 text-[#e0e1f5] focus:border-[#3b82f6] focus:outline-none print:bg-transparent print:border-none print:text-black"
                         placeholder="Bank account, routing code..."
                       />
                     </div>
 
                     {/* CRM margin and expenses calculators */}
-                    <div className="no-print border border-[#3c4a42]/20 rounded-2xl p-4 bg-[#1c1f2d]/40 space-y-4">
-                      <span className="text-[10px] text-[#4edea3] uppercase font-bold tracking-wider block">CRM Margin Analytics</span>
+                    <div className="no-print border border-[#2a324b]/20 rounded-2xl p-4 bg-[#1c1f2d]/40 space-y-4">
+                      <span className="text-[10px] text-[#3b82f6] uppercase font-bold tracking-wider block">CRM Margin Analytics</span>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
-                          <label className="text-[9px] uppercase font-bold text-[#bbcabf]">Expenses / COGS ({currencySymbol})</label>
+                          <label className="text-[9px] uppercase font-bold text-[#c4cbdf]">Expenses / COGS ({currencySymbol})</label>
                           <input
                             type="number"
                             value={activeInvoice.expenses || ""}
                             onChange={e => updateActiveInvoice(inv => ({ ...inv, expenses: Number(e.target.value) }))}
                             placeholder="e.g. 5000"
-                            className="w-full bg-[#101320] border border-[#3c4a42]/20 text-xs rounded-lg px-2.5 py-1.5 text-white focus:outline-none"
+                            className="w-full bg-[#101320] border border-[#2a324b]/20 text-xs rounded-lg px-2.5 py-1.5 text-white focus:outline-none"
                           />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[9px] uppercase font-bold text-[#bbcabf]">Net Profit / Margin</label>
+                          <label className="text-[9px] uppercase font-bold text-[#c4cbdf]">Net Profit / Margin</label>
                           <p className="text-sm font-bold text-white mt-1">
                             {currencySymbol}{calculations.profit.toLocaleString()} 
-                            <span className="text-xs text-[#4edea3] ml-1.5">({calculations.margin}%)</span>
+                            <span className="text-xs text-[#3b82f6] ml-1.5">({calculations.margin}%)</span>
                           </p>
                         </div>
                       </div>
 
                       {/* Estimated vs Actual View */}
                       {activeInvoice.estimatedBudget > 0 && (
-                        <div className="pt-2 border-t border-[#3c4a42]/10 space-y-1">
-                          <div className="flex justify-between text-[10px] text-[#bbcabf]">
+                        <div className="pt-2 border-t border-[#2a324b]/10 space-y-1">
+                          <div className="flex justify-between text-[10px] text-[#c4cbdf]">
                             <span>ESTIMATED PROJECT BUDGET: {currencySymbol}{activeInvoice.estimatedBudget.toLocaleString()}</span>
-                            <span className={calculations.total > activeInvoice.estimatedBudget ? "text-[#ffb4ab]" : "text-[#4edea3]"}>
+                            <span className={calculations.total > activeInvoice.estimatedBudget ? "text-[#ffb4ab]" : "text-[#3b82f6]"}>
                               ACTUAL BILLED: {Math.round((calculations.total / activeInvoice.estimatedBudget) * 100)}%
                             </span>
                           </div>
                           <div className="h-1.5 w-full bg-[#101320] rounded-full overflow-hidden">
                             <div 
                               className={`h-full rounded-full transition-all duration-500 ${
-                                calculations.total > activeInvoice.estimatedBudget ? "bg-[#ffb4ab]" : "bg-[#4edea3]"
+                                calculations.total > activeInvoice.estimatedBudget ? "bg-[#ffb4ab]" : "bg-[#3b82f6]"
                               }`}
                               style={{ width: `${Math.min((calculations.total / activeInvoice.estimatedBudget) * 100, 100)}%` }}
                             />
@@ -2009,12 +1988,12 @@ Created on TermShield Invoice Studio.`;
                   </div>
 
                   {/* Right Column: Invoice Totals Breakdown */}
-                  <div className="bg-[#1c1f2d]/40 rounded-2xl p-6 border border-[#3c4a42]/15 space-y-4 print:bg-transparent print:border-none">
-                    <span className="text-[10px] text-[#bbcabf] uppercase font-bold tracking-wider block">Invoice Totals</span>
+                  <div className="bg-[#1c1f2d]/40 rounded-2xl p-6 border border-[#2a324b]/15 space-y-4 print:bg-transparent print:border-none">
+                    <span className="text-[10px] text-[#c4cbdf] uppercase font-bold tracking-wider block">Invoice Totals</span>
                     
                     <div className="space-y-3.5 text-sm">
                       {/* Subtotal */}
-                      <div className="flex justify-between text-[#bbcabf]">
+                      <div className="flex justify-between text-[#c4cbdf]">
                         <span>Subtotal:</span>
                         <span className="text-white print:text-black font-semibold">
                           {currencySymbol}{calculations.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
@@ -2043,7 +2022,7 @@ Created on TermShield Invoice Studio.`;
 
                       {/* Tax */}
                       {activeInvoice.taxRate > 0 && (
-                        <div className="flex justify-between text-[#bbcabf]">
+                        <div className="flex justify-between text-[#c4cbdf]">
                           <span>{activeInvoice.taxLabel} ({activeInvoice.taxRate}%):</span>
                           <span className="text-white print:text-black font-semibold">
                             {currencySymbol}{calculations.taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
@@ -2051,12 +2030,12 @@ Created on TermShield Invoice Studio.`;
                         </div>
                       )}
 
-                      <div className="h-px bg-[#3c4a42]/15" />
+                      <div className="h-px bg-[#2a324b]/15" />
 
                       {/* GRAND TOTAL DUE */}
                       <div className="flex justify-between items-baseline pt-2">
                         <span className="text-base font-bold text-white print:text-black">GRAND TOTAL DUE:</span>
-                        <span className="text-3xl font-extrabold text-[#4edea3] print:text-black drop-shadow-[0_0_15px_rgba(78,222,163,0.15)]">
+                        <span className="text-3xl font-extrabold text-[#3b82f6] print:text-black drop-shadow-[0_0_15px_rgba(59, 130, 246, 0.15)]">
                           {currencySymbol}{calculations.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </span>
                       </div>

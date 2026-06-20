@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Scan } from "@/types";
+import { categoryLabels } from "@/components/RiskCard";
 
 interface ShareModalProps {
   scan: Scan;
@@ -18,36 +19,30 @@ export function ShareModal({ scan, onClose }: ShareModalProps) {
   const subject = `Proposed Changes - ${scan.filename}`;
 
   useEffect(() => {
-    // Construct default message structure
+    // Build counter offer from actual detection results (suggestedRewrite)
     const concerns = scan.risks
       .filter((r) => r.severity === "critical" || r.severity === "important")
       .map((r, index) => {
-        const categoryLabel =
-          r.category === "ip"
-            ? "Intellectual Property"
-            : r.category === "payment"
-            ? "Payment Terms"
-            : r.category === "non-compete"
-            ? "Non-Compete"
-            : r.category === "termination"
-            ? "Termination"
-            : r.category;
-        
-        return `${index + 1}. [${categoryLabel}]
-   • What was proposed: "${r.clauseText.trim()}"
-   • Suggested revision: ${r.fixMessage || r.explanation}`;
+        const label = categoryLabels[r.category] ?? r.category;
+        const suggestedFix = r.suggestedRewrite || r.fixMessage || r.explanation;
+
+        return `${index + 1}. [${label}]
+   • Original clause: "${r.clauseText.trim()}"
+   • Proposed change: ${suggestedFix}`;
       })
       .join("\n\n");
 
     const defaultMessage = `Dear Sir/Madam,
 
-Thank you for sharing the contract for "${scan.filename}". I have reviewed the terms, and everything looks great overall.
+Thank you for sharing the contract for "${scan.filename}". I have reviewed the terms carefully, and I appreciate the overall structure.
 
-To ensure mutual protection and clear alignment before we begin, I would like to propose a few standard adjustments to the following clauses:
+To ensure mutual protection and clear alignment before we begin, I would like to propose the following specific changes to ${scan.risks.filter((r) => r.severity !== "safe").length} clause(s):
 
-${concerns || "1. General terms adjustment: Please see the attached report for suggested modifications."}
+${concerns || "No critical or important risks were detected. The contract looks good overall."}
 
-These adjustments are aligned with standard freelance practices in India and ensure we are both fully protected. Please let me know if these changes work for you, and I will be happy to sign the updated version.
+These adjustments are aligned with standard freelance practices in India and ensure we are both fully protected. I am happy to discuss any of these points further.
+
+Please let me know if these changes work for you, and I will be happy to sign the updated version.
 
 Looking forward to working together!
 
@@ -72,7 +67,6 @@ Best regards,`;
 
   const whatsappUrl = `https://api.whatsapp.com/send?text=${encodedText}`;
   const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&su=${encodedSubject}&body=${encodedText}`;
-  const mailtoUrl = `mailto:?subject=${encodedSubject}&body=${encodedText}`;
   const outlookUrl = `https://outlook.office.com/mail/deeplink/compose?subject=${encodedSubject}&body=${encodedText}`;
 
   const handleWhatsAppClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -107,7 +101,7 @@ Best regards,`;
           <span>📧</span> Send Counter Offer
         </h3>
         <p className="text-sm text-on-surface-variant mb-4">
-          Review and customize the message below. Once ready, choose your preferred application to send it.
+          The counter offer below is auto-generated from your scan results. Edit if needed, then send via your preferred app.
         </p>
 
         {/* Editable Message Area */}

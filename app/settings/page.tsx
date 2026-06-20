@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
+import { BrandLogo } from "@/components/BrandLogo";
 
 export default function SettingsPage() {
   const { user, loading } = useAuth();
@@ -15,35 +16,9 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
-
   const [name, setName] = useState("");
   const [savingName, setSavingName] = useState(false);
   const [nameMessage, setNameMessage] = useState("");
-
-  useEffect(() => {
-    // Check local storage for preference
-    const savedTheme = localStorage.getItem("termshield-theme");
-    if (savedTheme === "light") {
-      setTheme("light");
-      document.body.classList.add("light-theme");
-    } else {
-      setTheme("dark");
-      document.body.classList.remove("light-theme");
-    }
-  }, []);
-
-  const toggleTheme = () => {
-    const nextTheme = theme === "dark" ? "light" : "dark";
-    setTheme(nextTheme);
-    localStorage.setItem("termshield-theme", nextTheme);
-    if (nextTheme === "light") {
-      document.body.classList.add("light-theme");
-    } else {
-      document.body.classList.remove("light-theme");
-    }
-  };
-
   useEffect(() => {
     if (!loading && !user) {
       router.push("/login");
@@ -99,15 +74,8 @@ export default function SettingsPage() {
       {/* Header */}
       <header className="glass-heavy sticky top-0 z-40 transition-colors duration-500" style={{ borderBottom: '1px solid var(--outline-variant)' }}>
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary/20">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-primary">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
-            </div>
-            <span className="text-lg font-bold tracking-tight text-on-surface">
-              Term<span className="text-primary">Shield</span>
-            </span>
+          <Link href="/" className="group">
+            <BrandLogo iconSize={32} textClassName="text-lg font-extrabold tracking-wider text-white font-sans" />
           </Link>
           <div className="flex items-center gap-4">
             <span className="text-sm text-primary font-medium">{user.user_metadata?.full_name || user.email}</span>

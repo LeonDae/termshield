@@ -1,40 +1,33 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-
-// Initialize a supabase admin client with the service role key
-// to bypass Row Level Security and delete users.
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { createSupabaseServerClient } from '@/lib/supabase';
 
 export async function DELETE(request: Request) {
   try {
-    // 1. We need to verify the user making the request.
-    // The client should send the token in the Authorization header.
     const authHeader = request.headers.get('Authorization');
-    if (!authHeader) {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
     }
 
-    const token = authHeader.replace('Bearer ', '');
+    const token = authHeader.substring(7);
     if (!token) {
       return NextResponse.json({ error: 'Missing token' }, { status: 401 });
     }
 
-    // Initialize regular client to verify token
+    // Verify the token using a regular client with the anon key
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
 
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
+
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized or invalid token' }, { status: 401 });
     }
 
-    // 2. Now use admin client to delete the user
+    // Use the shared admin client (service role) to delete the user
+    const supabaseAdmin = createSupabaseServerClient();
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user.id);
 
     if (deleteError) {
