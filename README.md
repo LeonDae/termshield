@@ -13,7 +13,7 @@
 
 *Stop signing contracts that cost you lakhs. Plain-English risk detection in under 60 seconds.*
 
-### [TRY IT OUT NOW](https://termshield-rho.vercel.app/)
+### [TRY IT OUT NOW]([https://termshield-rho.vercel.app/](https://termshield-tyii.vercel.app/))
 
 </div>
 
