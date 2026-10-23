@@ -13,7 +13,7 @@
 
 *Stop signing contracts that cost you lakhs. Plain-English risk detection in under 60 seconds.*
 
-### [TRY IT OUT NOW]([https://termshield-rho.vercel.app/](https://termshield-tyii.vercel.app/))
+### [TRY IT NOW](https://termshield-tyii.vercel.app/)
 
 </div>
 
@@ -21,7 +21,7 @@
 
 ## 🌟 What is TermShield?
 
-**TermShield** is a state-of-the-art web application acting as a first line of legal defense for freelancers, independent contractors, and small agencies. By parsing uploaded PDF contracts and feeding them through an advanced semantic RAG (Retrieval-Augmented Generation) pipeline powered by Google Gemini, TermShield analyzes critical legal terms and translates complex legalese into clear, actionable, financial-focused advice.
+**TermShield** is a state-of-the-art web application acting as a first line of legal defense for freelancers, independent contractors, and small agencies. By parsing uploaded PDF contracts and feeding[...] 
 
 It not only highlights predatory clauses but also equips users with professional, AI-generated negotiation drafts to confidently push back and secure better terms.
 
@@ -29,7 +29,7 @@ It not only highlights predatory clauses but also equips users with professional
 
 ## 🚨 The Problem It Solves
 
-Most freelancers and small agencies lose money not because of a lack of skill, but because they unknowingly sign terms they cannot fulfill or that inherently work against them. Contracts often contain hidden traps:
+Most freelancers and small agencies lose money not because of a lack of skill, but because they unknowingly sign terms they cannot fulfill or that inherently work against them. Contracts often contain[...]
 
 - 💸 **Delayed Payments:** Net-90 or Net-120 terms that squeeze your cash flow and operating runway.
 - 🔓 **Predatory IP Ownership:** Clauses where intellectual property rights transfer entirely *before* your invoice is fully cleared.
