@@ -31,7 +31,9 @@ export function ScanPoller({ scanId, initialScan }: ScanPollerProps) {
 
   const fetchScan = useCallback(async () => {
     try {
-      const res = await fetch(`/api/scan/${scanId}`);
+      const res = await fetch(`/api/scan/${scanId}?t=${Date.now()}`, {
+        cache: "no-store",
+      });
       const data = await res.json();
 
       if (!res.ok) {

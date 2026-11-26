@@ -31,6 +31,47 @@ export interface GeminiAnalysisRequest {
 // ── Gemini client (shared, rate-limited) ─────────────────────────────────────
 
 const DEBUG = process.env.NODE_ENV !== "production";
+const GEMINI_MODELS = ["gemini-3.5-flash-lite", "gemini-3.8-flash"] as const;
+
+/**
+ * Generates structured JSON content with automatic model fallback on 404/503/429.
+ */
+async function generateWithModelFallback(
+  contents: string,
+  responseSchema: Schema
+) {
+  const ai = getGeminiClient();
+  let lastError: unknown;
+
+  for (const model of GEMINI_MODELS) {
+    try {
+      return await retryWithBackoff(async () => {
+        await generateContentLimiter.waitForToken();
+        return await ai.models.generateContent({
+          model,
+          contents,
+          config: {
+            responseMimeType: "application/json",
+            responseSchema,
+            temperature: 0.1,
+            ...(model.includes("3.8") ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+          },
+        });
+      }, 1, 1000);
+    } catch (error: any) {
+      lastError = error;
+      const status = error?.status;
+      console.warn(`[Gemini] Model "${model}" failed (status=${status ?? "unknown"}), trying next fallback if available...`);
+      // Try next model on 400 (unsupported config), 404 (unavailable), 503 (high demand), or 429 (quota)
+      if (status === 400 || status === 404 || status === 503 || status === 429) {
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw lastError;
+}
 
 // ── Main analysis function ───────────────────────────────────────────────────
 
@@ -57,15 +98,16 @@ async function retryWithBackoff<T>(
     return await fn();
   } catch (error: any) {
     const msg = String(error?.message || "");
-    // Never wait/retry when daily quota is exhausted — retrying 10s later won't help
-    if (msg.includes("PerDay") || msg.includes("GenerateRequestsPerDay")) {
+    const status = error?.status;
+    // Never wait/retry on 400 (invalid argument), 404 (model unavailable), 503 (overloaded), or daily quota exhaustion
+    if (status === 400 || status === 404 || status === 503 || msg.includes("PerDay") || msg.includes("GenerateRequestsPerDay")) {
       throw error;
     }
 
     if (retries <= 0) throw error;
 
     // For 429 rate-limit errors (RPM), use longer backoff
-    const is429 = error?.status === 429 || msg.includes("429");
+    const is429 = status === 429 || msg.includes("429");
     const actualDelay = is429 ? Math.max(delay, 10_000) : delay;
 
     console.warn(`[Gemini-Resilience] API call failed (${is429 ? "429 Rate Limit" : "error"}). Retrying in ${actualDelay}ms... (Remaining retries: ${retries})`);
@@ -109,23 +151,13 @@ function getFallbackAnalysis(request: GeminiAnalysisRequest): ClauseAnalysis {
 export async function analyzeClauseWithGemini(
   request: GeminiAnalysisRequest
 ): Promise<ClauseAnalysis | null> {
-  const ai = getGeminiClient();
   const prompt = buildPrompt(request);
 
   try {
-    const response = await retryWithBackoff(async () => {
-      await generateContentLimiter.waitForToken();
-      return await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: geminiClauseResponseSchema,
-          temperature: 0.1, // Maximum determinism
-          thinkingConfig: { thinkingBudget: 0 },
-        },
-      });
-    }, 3, 1000);
+    const response = await generateWithModelFallback(
+      prompt,
+      geminiClauseResponseSchema
+    );
 
     if (!response.text) {
       console.error("Gemini returned empty response for clause analysis");
@@ -284,7 +316,6 @@ function fuzzySubstringMatch(
 export async function bulkAnalyzeClausesWithGemini(
   clauses: SegmentedClause[]
 ): Promise<Map<number, ClauseAnalysis>> {
-  const ai = getGeminiClient();
   const resultMap = new Map<number, ClauseAnalysis>();
 
   if (clauses.length === 0) return resultMap;
@@ -343,19 +374,7 @@ export async function bulkAnalyzeClausesWithGemini(
 
   try {
     DEBUG && console.log(`[Gemini-Bulk] Sending ${clauses.length} clauses in a single Gemini API call...`);
-    const response = await retryWithBackoff(async () => {
-      await generateContentLimiter.waitForToken();
-      return await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: bulkResponseSchema,
-          temperature: 0.1,
-          thinkingConfig: { thinkingBudget: 0 },
-        },
-      });
-    }, 1, 1000);
+    const response = await generateWithModelFallback(prompt, bulkResponseSchema);
 
     if (!response.text) {
       console.error("[Gemini-Bulk] Empty response from Gemini");

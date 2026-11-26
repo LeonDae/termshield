@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { unstable_noStore as noStore } from "next/cache";
 
 import { demoScan } from "@/lib/demo-scan";
 import { getScanRecordById, getScanSetupMessage } from "@/lib/scans";
@@ -10,6 +11,7 @@ export async function GET(
   _request: Request,
   { params }: { params: { id: string } },
 ) {
+  noStore();
   if (params.id === demoScan.id) {
     return NextResponse.json({
       scan: demoScan,
