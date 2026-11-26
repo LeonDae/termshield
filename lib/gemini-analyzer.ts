@@ -56,10 +56,16 @@ async function retryWithBackoff<T>(
   try {
     return await fn();
   } catch (error: any) {
+    const msg = String(error?.message || "");
+    // Never wait/retry when daily quota is exhausted — retrying 10s later won't help
+    if (msg.includes("PerDay") || msg.includes("GenerateRequestsPerDay")) {
+      throw error;
+    }
+
     if (retries <= 0) throw error;
 
-    // For 429 rate-limit errors, use much longer backoff
-    const is429 = error?.status === 429 || error?.message?.includes("429");
+    // For 429 rate-limit errors (RPM), use longer backoff
+    const is429 = error?.status === 429 || msg.includes("429");
     const actualDelay = is429 ? Math.max(delay, 10_000) : delay;
 
     console.warn(`[Gemini-Resilience] API call failed (${is429 ? "429 Rate Limit" : "error"}). Retrying in ${actualDelay}ms... (Remaining retries: ${retries})`);
@@ -116,6 +122,7 @@ export async function analyzeClauseWithGemini(
           responseMimeType: "application/json",
           responseSchema: geminiClauseResponseSchema,
           temperature: 0.1, // Maximum determinism
+          thinkingConfig: { thinkingBudget: 0 },
         },
       });
     }, 3, 1000);
@@ -345,9 +352,10 @@ export async function bulkAnalyzeClausesWithGemini(
           responseMimeType: "application/json",
           responseSchema: bulkResponseSchema,
           temperature: 0.1,
+          thinkingConfig: { thinkingBudget: 0 },
         },
       });
-    }, 2, 1000);
+    }, 1, 1000);
 
     if (!response.text) {
       console.error("[Gemini-Bulk] Empty response from Gemini");

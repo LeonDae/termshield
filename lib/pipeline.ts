@@ -28,10 +28,45 @@ import type { ClauseAnalysis } from "@/lib/schemas";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const RAG_TIMEOUT_MS = 20_000; // 20 seconds — leaves plenty of buffer within Vercel's 60s limit
-const LLM_TOTAL_BUDGET_MS = 35_000; // 35 seconds hard cap for all LLM calls
+const LLM_TOTAL_BUDGET_MS = 40_000; // 40 seconds hard cap for all LLM calls
 const EMBEDDING_STORAGE_TIMEOUT_MS = 8_000; // 8 seconds max for optional embedding storage
 const GEMINI_CONCURRENCY = 2; // Max parallel Gemini API calls (conservative for free tier)
 const DEBUG = process.env.NODE_ENV !== "production";
+
+/**
+ * Merges adjacent short/fragmented clauses (common in pdf2json output) into
+ * cohesive ~700-char chunks so large PDFs don't explode into 200+ Gemini/embedding calls.
+ */
+function mergeFragmentedClauses(clauses: SegmentedClause[], maxChunkChars = 700): SegmentedClause[] {
+  if (clauses.length <= 40) return clauses;
+
+  const merged: SegmentedClause[] = [];
+  let current: SegmentedClause | null = null;
+
+  for (const clause of clauses) {
+    if (!current) {
+      current = { ...clause };
+      continue;
+    }
+
+    const sameSection = current.sectionTitle === clause.sectionTitle;
+    const fitsBudget = current.clauseText.length + clause.clauseText.length + 1 <= maxChunkChars;
+
+    if (sameSection && fitsBudget) {
+      current.clauseText = `${current.clauseText}\n${clause.clauseText}`;
+      current.surroundingContext = clause.surroundingContext || current.surroundingContext;
+    } else {
+      merged.push(current);
+      current = { ...clause };
+    }
+  }
+
+  if (current) {
+    merged.push(current);
+  }
+
+  return merged;
+}
 
 /**
  * Run async tasks with a concurrency limit.
@@ -133,6 +168,9 @@ export async function runLLMPipeline(scanId: string, contractText: string) {
           sectionTitle: clause.sectionTitle,
           clauseId: null,
         });
+      } else if (clause.clauseType === "heading" || clause.clauseText.trim().length < 40) {
+        // Skip standalone headings and tiny fragments (< 40 chars) from expensive LLM/embedding calls
+        continue;
       } else {
         // Needs further analysis — queue for embedding
         DEBUG && console.log(`[Pipeline] Clause ${clause.clauseIndex} needs further analysis (Rule Match: ${ruleResult ? `low confidence ${ruleResult.confidence.toFixed(2)}` : "None"})`);
@@ -149,6 +187,7 @@ export async function runLLMPipeline(scanId: string, contractText: string) {
     let geminiCallCount = 0;
     let retrievalMatchCount = 0;
     let usedBulkFallback = false;
+    let clausesAnalyzedByLLM = clausesNeedingEmbedding;
 
     if (clausesNeedingEmbedding.length > 0) {
       const ragStartTime = Date.now();
@@ -158,14 +197,29 @@ export async function runLLMPipeline(scanId: string, contractText: string) {
       const BULK_THRESHOLD = 4;
 
       if (clausesNeedingEmbedding.length > BULK_THRESHOLD) {
-        DEBUG && console.log(`[Pipeline] ${clausesNeedingEmbedding.length} clauses need analysis (> ${BULK_THRESHOLD}). Using parallel bulk batched mode...`);
+        // Merge fragmented PDF lines first so 200+ short fragments become ~25-40 rich clauses
+        const mergedClauses = mergeFragmentedClauses(clausesNeedingEmbedding);
+        DEBUG && console.log(`[Pipeline] ${clausesNeedingEmbedding.length} clauses merged into ${mergedClauses.length} chunks. Using bulk batched mode...`);
         usedBulkFallback = true;
 
-        // Process in batches of 25 clauses concurrently (up to 3 in parallel) within budget
+        // Cap total LLM clauses at 50 (2 batches of 25) to stay safely under free-tier 5-10 RPM & 100/min embed limits
+        const MAX_LLM_CLAUSES = 50;
+        const clausesForBulk =
+          mergedClauses.length > MAX_LLM_CLAUSES
+            ? [...mergedClauses]
+                .sort((a, b) => {
+                  const aScore = (ruleResults.get(a.clauseIndex) ? 1000 : 0) + a.clauseText.length;
+                  const bScore = (ruleResults.get(b.clauseIndex) ? 1000 : 0) + b.clauseText.length;
+                  return bScore - aScore;
+                })
+                .slice(0, MAX_LLM_CLAUSES)
+            : mergedClauses;
+
         const BATCH_SIZE = 25;
+        clausesAnalyzedByLLM = clausesForBulk;
         const batches: SegmentedClause[][] = [];
-        for (let batchStart = 0; batchStart < clausesNeedingEmbedding.length; batchStart += BATCH_SIZE) {
-          batches.push(clausesNeedingEmbedding.slice(batchStart, batchStart + BATCH_SIZE));
+        for (let batchStart = 0; batchStart < clausesForBulk.length; batchStart += BATCH_SIZE) {
+          batches.push(clausesForBulk.slice(batchStart, batchStart + BATCH_SIZE));
         }
 
         const batchTasks = batches.map((batch, batchIdx) => async () => {
@@ -232,7 +286,7 @@ export async function runLLMPipeline(scanId: string, contractText: string) {
         });
 
         await Promise.race([
-          runWithConcurrency(batchTasks, 3),
+          runWithConcurrency(batchTasks, 2),
           new Promise<void>((resolve) => setTimeout(resolve, LLM_TOTAL_BUDGET_MS)),
         ]);
       } else {
@@ -333,33 +387,36 @@ export async function runLLMPipeline(scanId: string, contractText: string) {
     // Only run if we still have plenty of serverless time budget remaining.
     let clauseTextToIdMap = new Map<string, string>();
     const elapsedMs = Date.now() - pipelineStartTime;
-    if (clausesNeedingEmbedding.length > 0 && elapsedMs < 42_000) {
+    if (clausesAnalyzedByLLM.length > 0 && elapsedMs < 42_000) {
+      let embTimeoutId: ReturnType<typeof setTimeout> | undefined;
       try {
         await Promise.race([
           (async () => {
-            const textsToEmbed = clausesNeedingEmbedding.map((c) => c.clauseText);
+            const textsToEmbed = clausesAnalyzedByLLM.map((c) => c.clauseText);
             const storageEmbeddings = await getEmbeddings(textsToEmbed);
             if (storageEmbeddings.some((e: number[]) => e && e.length === 768)) {
-              const riskLabels = clausesNeedingEmbedding.map((clause) => {
+              const riskLabels = clausesAnalyzedByLLM.map((clause) => {
                 const result = results.find((r) => r.clauseText === clause.clauseText);
                 return result?.riskType ?? null;
               });
-              DEBUG && console.log(`[Pipeline] Storing ${clausesNeedingEmbedding.length} clause embeddings in Supabase...`);
-              clauseTextToIdMap = await storeClauseEmbeddings(scanId, documentHash, clausesNeedingEmbedding, storageEmbeddings, riskLabels);
+              DEBUG && console.log(`[Pipeline] Storing ${clausesAnalyzedByLLM.length} clause embeddings in Supabase...`);
+              clauseTextToIdMap = await storeClauseEmbeddings(scanId, documentHash, clausesAnalyzedByLLM, storageEmbeddings, riskLabels);
               DEBUG && console.log(`[Pipeline] Successfully saved clause embeddings. IDs mapped: ${clauseTextToIdMap.size}`);
             }
           })(),
-          new Promise<void>((resolve) =>
-            setTimeout(() => {
+          new Promise<void>((resolve) => {
+            embTimeoutId = setTimeout(() => {
               console.warn(`[Pipeline] ${scanId}: Embedding storage timed out after ${EMBEDDING_STORAGE_TIMEOUT_MS}ms, continuing to save risks.`);
               resolve();
-            }, EMBEDDING_STORAGE_TIMEOUT_MS)
-          ),
+            }, EMBEDDING_STORAGE_TIMEOUT_MS);
+          }),
         ]);
       } catch (error) {
         console.error(`[Pipeline] ${scanId}: Failed to store clause embeddings:`, error);
+      } finally {
+        if (embTimeoutId) clearTimeout(embTimeoutId);
       }
-    } else if (clausesNeedingEmbedding.length > 0) {
+    } else if (clausesAnalyzedByLLM.length > 0) {
       console.warn(`[Pipeline] ${scanId}: Skipping embedding storage (${elapsedMs}ms elapsed) to ensure scan completes within timeout.`);
     }
 

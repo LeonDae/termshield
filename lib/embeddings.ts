@@ -102,6 +102,57 @@ export async function getEmbedding(text: string): Promise<number[]> {
   return embedding;
 }
 
+const EMBEDDING_BATCH_LIMIT = 80; // Gemini BatchEmbedContentsRequest allows at most 100 requests per call
+
+/**
+ * Call Gemini embedContent in chunks of <= EMBEDDING_BATCH_LIMIT.
+ */
+async function embedTextsInBatches(texts: string[]): Promise<number[][]> {
+  const ai = getGeminiClient();
+  const allEmbeddings: number[][] = [];
+
+  for (let start = 0; start < texts.length; start += EMBEDDING_BATCH_LIMIT) {
+    const chunk = texts.slice(start, start + EMBEDDING_BATCH_LIMIT);
+    await embeddingLimiter.waitForToken();
+    try {
+      const res = await ai.models.embedContent({
+        model: "models/gemini-embedding-2",
+        contents: chunk,
+        config: { outputDimensionality: 768 },
+      });
+
+      if (!res.embeddings || res.embeddings.length !== chunk.length) {
+        throw new Error(
+          `Embedding API returned mismatch in batch count: expected ${chunk.length}, got ${res.embeddings?.length || 0}`
+        );
+      }
+
+      for (let k = 0; k < chunk.length; k++) {
+        const values = res.embeddings[k]?.values;
+        if (!values || values.length !== 768) {
+          throw new Error(
+            `Embedding API returned invalid vector at index ${start + k}: expected 768, got ${values?.length || 0}`
+          );
+        }
+        allEmbeddings.push(values);
+      }
+    } catch (err: any) {
+      // On free-tier 429 quota exceeded (100 embed requests/min), pad remaining slots with empty vectors
+      // instead of crashing the whole pipeline.
+      if (err?.status === 429 || String(err?.message).includes("429")) {
+        console.warn("[Embeddings] Free-tier embedding quota reached; skipping remaining embeddings for this scan.");
+        while (allEmbeddings.length < texts.length) {
+          allEmbeddings.push([]);
+        }
+        return allEmbeddings;
+      }
+      throw err;
+    }
+  }
+
+  return allEmbeddings;
+}
+
 /**
  * Get embeddings for multiple texts, batched and cached.
  */
@@ -110,7 +161,7 @@ export async function getEmbeddings(texts: string[]): Promise<number[][]> {
   const uncachedIndices: number[] = [];
   const uncachedTexts: string[] = [];
 
-  // Check caches first
+  // Check in-memory cache first
   for (let i = 0; i < texts.length; i++) {
     const hash = hashText(texts[i]);
     const cached = memoryCache.get(hash);
@@ -122,103 +173,70 @@ export async function getEmbeddings(texts: string[]): Promise<number[][]> {
     }
   }
 
-  // Check Supabase cache for remaining
-  if (uncachedTexts.length > 0) {
-    try {
-      const supabase = createSupabaseServerClient();
-      const hashes = uncachedTexts.map(hashText);
+  if (uncachedTexts.length === 0) {
+    return results;
+  }
+
+  let stillUncachedIndices: number[] = uncachedTexts.map((_, idx) => idx);
+
+  // Check Supabase cache for remaining texts (in chunks of 100 hashes)
+  try {
+    const supabase = createSupabaseServerClient();
+    const hashes = uncachedTexts.map(hashText);
+    const dbCache = new Map<string, any>();
+
+    for (let start = 0; start < hashes.length; start += 100) {
+      const hashChunk = hashes.slice(start, start + 100);
       const { data } = await supabase
         .from("embedding_cache")
         .select("text_hash, embedding")
-        .in("text_hash", hashes);
+        .in("text_hash", hashChunk);
 
       if (data) {
-        const dbCache = new Map(data.map((d: any) => [d.text_hash, d.embedding]));
-        const stillUncached: number[] = [];
-
-        for (let j = 0; j < uncachedTexts.length; j++) {
-          const hash = hashText(uncachedTexts[j]);
-          const dbEmbedding = dbCache.get(hash);
-          if (dbEmbedding) {
-            const parsed = parseVectorString(dbEmbedding);
-            if (parsed && parsed.length === 768) {
-              results[uncachedIndices[j]] = parsed;
-              memoryCache.set(hash, parsed);
-            } else {
-              stillUncached.push(j);
-            }
-          } else {
-            stillUncached.push(j);
-          }
+        for (const d of data as any[]) {
+          dbCache.set(d.text_hash, d.embedding);
         }
-
-        // Only API-call for truly uncached texts
-        if (stillUncached.length > 0) {
-          const textsToEmbed = stillUncached.map((j) => uncachedTexts[j]);
-          DEBUG && console.log(`[Embeddings] Batch cache miss. Calling Gemini embedding API for ${textsToEmbed.length} texts...`);
-          const ai = getGeminiClient();
-          await embeddingLimiter.waitForToken();
-          const res = await ai.models.embedContent({
-            model: "models/gemini-embedding-2",
-            contents: textsToEmbed,
-            config: { outputDimensionality: 768 },
-          });
-
-          if (!res.embeddings || res.embeddings.length !== textsToEmbed.length) {
-            throw new Error(`Embedding API returned mismatch in batch count: expected ${textsToEmbed.length}, got ${res.embeddings?.length || 0}`);
-          }
-
-          for (let k = 0; k < stillUncached.length; k++) {
-            const j = stillUncached[k];
-            const originalIdx = uncachedIndices[j];
-            const values = res.embeddings[k]?.values;
-            if (!values || values.length !== 768) {
-              throw new Error(`Embedding API returned invalid vector at index ${k}: expected 768, got ${values?.length || 0}`);
-            }
-            results[originalIdx] = values;
-
-            const hash = hashText(uncachedTexts[j]);
-            memoryCache.set(hash, values);
-            // Fire-and-forget cache store
-            storeInCache(hash, values).catch((err) => {
-              console.warn(`[Embeddings] Fire-and-forget cache store failed:`, err);
-            });
-          }
-        }
-
-        return results;
       }
-    } catch (dbErr) {
-      console.warn("[Embeddings] Supabase batch cache lookup failed:", dbErr);
-      // DB cache unavailable — fall through
     }
 
-    // Fallback: just embed all uncached texts directly
-    DEBUG && console.log(`[Embeddings] Fallback. Calling Gemini embedding API for all ${uncachedTexts.length} uncached texts...`);
-    const ai = getGeminiClient();
-    await embeddingLimiter.waitForToken();
-    const res = await ai.models.embedContent({
-      model: "models/gemini-embedding-2",
-      contents: uncachedTexts,
-      config: { outputDimensionality: 768 },
-    });
-
-    if (!res.embeddings || res.embeddings.length !== uncachedTexts.length) {
-      throw new Error(`Embedding API returned mismatch in fallback batch count: expected ${uncachedTexts.length}, got ${res.embeddings?.length || 0}`);
-    }
-
+    const remaining: number[] = [];
     for (let j = 0; j < uncachedTexts.length; j++) {
+      const hash = hashes[j];
+      const dbEmbedding = dbCache.get(hash);
+      if (dbEmbedding) {
+        const parsed = parseVectorString(dbEmbedding);
+        if (parsed && parsed.length === 768) {
+          results[uncachedIndices[j]] = parsed;
+          memoryCache.set(hash, parsed);
+          continue;
+        }
+      }
+      remaining.push(j);
+    }
+    stillUncachedIndices = remaining;
+  } catch (dbErr) {
+    console.warn("[Embeddings] Supabase batch cache lookup failed:", dbErr);
+  }
+
+  if (stillUncachedIndices.length > 0) {
+    const textsToEmbed = stillUncachedIndices.map((j) => uncachedTexts[j]);
+    DEBUG && console.log(`[Embeddings] Calling Gemini embedding API for ${textsToEmbed.length} uncached texts (chunked <= ${EMBEDDING_BATCH_LIMIT})...`);
+    const embeddedVectors = await embedTextsInBatches(textsToEmbed);
+
+    for (let k = 0; k < stillUncachedIndices.length; k++) {
+      const j = stillUncachedIndices[k];
       const originalIdx = uncachedIndices[j];
-      const values = res.embeddings[j]?.values;
+      const values = embeddedVectors[k];
       if (!values || values.length !== 768) {
-        throw new Error(`Embedding API returned invalid vector at index ${j} in fallback: expected 768, got ${values?.length || 0}`);
+        results[originalIdx] = [];
+        continue;
       }
       results[originalIdx] = values;
 
       const hash = hashText(uncachedTexts[j]);
       memoryCache.set(hash, values);
       storeInCache(hash, values).catch((err) => {
-        console.warn(`[Embeddings] Fallback cache store failed:`, err);
+        console.warn(`[Embeddings] Cache store failed:`, err);
       });
     }
   }
