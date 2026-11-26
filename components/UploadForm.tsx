@@ -146,10 +146,17 @@ export function UploadForm({ showFreePlan = false }: UploadFormProps) {
         });
       }
 
-      const payload = (await response.json()) as {
-        message?: string;
-        scan?: { id: string };
-      };
+      let payload: { message?: string; scan?: { id: string } };
+      const responseText = await response.text();
+      try {
+        payload = JSON.parse(responseText);
+      } catch {
+        // Server returned non-JSON (e.g. HTML error page from a timeout)
+        console.error("Non-JSON response from server:", responseText.slice(0, 200));
+        throw new Error(
+          "The server took too long to respond. Please try again — your contract may still be processing."
+        );
+      }
 
       if (!response.ok || !payload.scan?.id) {
         throw new Error(payload.message ?? "Unable to create the scan.");

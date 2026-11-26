@@ -17,9 +17,16 @@ import { createSupabaseServerClient } from "@/lib/supabase";
  *   - A multipart/form-data body with a PDF file + planType
  *   - A JSON body with { contractText, planType, filename? }
  *
- * Creates a scan record in Supabase and triggers the LLM processing
- * endpoint asynchronously (fire-and-forget).
+ * Creates a scan record in Supabase and returns it immediately.
+ * The heavy LLM processing pipeline runs in the background
+ * (fire-and-forget) so the response is fast and won't hit
+ * serverless function timeouts.
  */
+
+// Allow up to 60s for PDF extraction + scan record creation.
+// The actual LLM pipeline is fire-and-forget and runs via /api/scan/process.
+export const maxDuration = 30;
+
 export async function POST(request: Request) {
   try {
     let contractText: string;
@@ -87,12 +94,42 @@ export async function POST(request: Request) {
     // Create the scan record in Supabase (status: pending)
     const scan = await createScanRecord(input, userId);
 
-    // We must await this pipeline locally because Next.js dev server terminates background
-    // promises as soon as the HTTP response goes out!
-    try {
-      await runLLMPipeline(scan.id, input.contractText);
-    } catch (err) {
-      console.error("Failed to execute scan processing pipeline:", err);
+    // ── Trigger the LLM pipeline ──
+    // In development: await the pipeline directly since Next.js dev server
+    // terminates background promises when the response goes out.
+    // In production (Vercel): fire-and-forget fetch to /api/scan/process
+    // so the upload route returns quickly and avoids serverless timeouts.
+    const isDev = process.env.NODE_ENV === "development";
+
+    if (isDev) {
+      // Dev mode: await inline (background promises get killed on response)
+      try {
+        await runLLMPipeline(scan.id, input.contractText);
+      } catch (err) {
+        console.error("Failed to execute scan processing pipeline:", err);
+      }
+    } else {
+      // Production: fire-and-forget call to the process endpoint
+      const vercelUrl = process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : null;
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL !== "http://localhost:3000"
+        ? process.env.NEXT_PUBLIC_APP_URL
+        : vercelUrl || "http://localhost:3000";
+
+      fetch(`${appUrl}/api/scan/process`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(process.env.CRON_SECRET ? { "x-cron-secret": process.env.CRON_SECRET } : {}),
+        },
+        body: JSON.stringify({
+          scanId: scan.id,
+          contractText: input.contractText,
+        }),
+      }).catch((err) => {
+        console.error("Failed to trigger scan processing endpoint:", err);
+      });
     }
 
     return NextResponse.json({

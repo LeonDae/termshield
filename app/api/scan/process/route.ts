@@ -8,7 +8,12 @@ import { createSupabaseServerClient } from "@/lib/supabase";
  * Internal route — NEVER expose to the public internet without auth.
  * Accepts { scanId, contractText }, runs the Gemini LLM analysis,
  * validates with Zod, and persists the risks to Supabase.
+ *
+ * This route runs the heavy LLM pipeline and needs a generous timeout.
+ * On Vercel Hobby plan this caps at 60s; on Pro plan up to 300s.
  */
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   try {
     // Basic internal auth via CRON_SECRET header
