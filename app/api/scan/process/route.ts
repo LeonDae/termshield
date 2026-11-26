@@ -16,16 +16,9 @@ export const maxDuration = 60;
 
 export async function POST(request: Request) {
   try {
-    // Basic internal auth via CRON_SECRET header
     const authHeader = request.headers.get("x-cron-secret");
     const cronSecret = process.env.CRON_SECRET;
-
-    if (cronSecret && authHeader !== cronSecret) {
-      return NextResponse.json(
-        { message: "Unauthorized." },
-        { status: 401 }
-      );
-    }
+    const isAuthorizedCron = Boolean(cronSecret && authHeader === cronSecret);
 
     const body = await request.json();
     const { scanId, contractText } = body;
@@ -37,11 +30,38 @@ export async function POST(request: Request) {
       );
     }
 
-    // Await the pipeline completely since this is usually called by a cron or explicit request
+    const supabase = createSupabaseServerClient();
+
+    if (!isAuthorizedCron) {
+      // Allow client-triggered processing ONLY for scans currently in "pending" state,
+      // and atomically claim it by transitioning to "processing" so it runs at most once.
+      const { data: claimedScan, error: claimError } = await supabase
+        .from("scans")
+        .update({ status: "processing" })
+        .eq("id", scanId)
+        .eq("status", "pending")
+        .select("id")
+        .maybeSingle();
+
+      if (claimError) {
+        return NextResponse.json(
+          { message: claimError.message },
+          { status: 500 }
+        );
+      }
+
+      if (!claimedScan) {
+        return NextResponse.json(
+          { message: "Scan is already processing, completed, or not found." },
+          { status: 409 }
+        );
+      }
+    }
+
+    // Await the pipeline completely
     await runLLMPipeline(scanId, contractText);
 
     // Fetch the updated scan to return the score
-    const supabase = createSupabaseServerClient();
     const { data: scan } = await supabase
       .from("scans")
       .select("confidence_score")

@@ -27,7 +27,7 @@ import { analyzeClauseWithGemini, bulkAnalyzeClausesWithGemini } from "@/lib/gem
 import type { ClauseAnalysis } from "@/lib/schemas";
 
 // ── Constants ────────────────────────────────────────────────────────────────
-const RAG_TIMEOUT_MS = 55_000; // 55 seconds — leaves 5s buffer for DB writes
+const RAG_TIMEOUT_MS = 25_000; // 25 seconds — leaves plenty of buffer within Vercel's 60s limit
 const GEMINI_CONCURRENCY = 2; // Max parallel Gemini API calls (conservative for free tier)
 const DEBUG = process.env.NODE_ENV !== "production";
 
@@ -151,8 +151,8 @@ export async function runLLMPipeline(scanId: string, contractText: string) {
       const ragStartTime = Date.now();
 
       // If too many clauses need Gemini, skip individual RAG path entirely and
-      // use bulk analysis to minimize API calls (critical for free tier limits).
-      const BULK_THRESHOLD = 10;
+      // use bulk analysis to minimize API calls and stay under serverless timeouts.
+      const BULK_THRESHOLD = 4;
 
       if (clausesNeedingEmbedding.length > BULK_THRESHOLD) {
         DEBUG && console.log(`[Pipeline] ${clausesNeedingEmbedding.length} clauses need analysis (> ${BULK_THRESHOLD}). Using bulk batched mode to conserve API quota...`);

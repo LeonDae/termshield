@@ -7,7 +7,6 @@ import {
   getScanSetupMessage,
 } from "@/lib/scans";
 import { extractTextFromPDF } from "@/lib/pdf";
-import { runLLMPipeline } from "@/lib/pipeline";
 import { createSupabaseServerClient } from "@/lib/supabase";
 
 /**
@@ -94,47 +93,14 @@ export async function POST(request: Request) {
     // Create the scan record in Supabase (status: pending)
     const scan = await createScanRecord(input, userId);
 
-    // ── Trigger the LLM pipeline ──
-    // In development: await the pipeline directly since Next.js dev server
-    // terminates background promises when the response goes out.
-    // In production (Vercel): fire-and-forget fetch to /api/scan/process
-    // so the upload route returns quickly and avoids serverless timeouts.
-    const isDev = process.env.NODE_ENV === "development";
-
-    if (isDev) {
-      // Dev mode: await inline (background promises get killed on response)
-      try {
-        await runLLMPipeline(scan.id, input.contractText);
-      } catch (err) {
-        console.error("Failed to execute scan processing pipeline:", err);
-      }
-    } else {
-      // Production: fire-and-forget call to the process endpoint
-      const vercelUrl = process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : null;
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL !== "http://localhost:3000"
-        ? process.env.NEXT_PUBLIC_APP_URL
-        : vercelUrl || "http://localhost:3000";
-
-      fetch(`${appUrl}/api/scan/process`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(process.env.CRON_SECRET ? { "x-cron-secret": process.env.CRON_SECRET } : {}),
-        },
-        body: JSON.stringify({
-          scanId: scan.id,
-          contractText: input.contractText,
-        }),
-      }).catch((err) => {
-        console.error("Failed to trigger scan processing endpoint:", err);
-      });
-    }
-
+    // Return immediately with the scan record and extracted contractText.
+    // The client navigates to /scan/[id] where ScanPoller triggers /api/scan/process
+    // so the heavy LLM pipeline runs in its own 60s serverless invocation
+    // without blocking the upload response or getting killed on Vercel.
     return NextResponse.json({
       message: "Scan created. Processing will begin shortly.",
       scan,
+      contractText: input.contractText,
     });
   } catch (error) {
     if (error instanceof ZodError) {

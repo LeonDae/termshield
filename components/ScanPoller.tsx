@@ -53,6 +53,38 @@ export function ScanPoller({ scanId, initialScan }: ScanPollerProps) {
   }, [scanId]);
 
   useEffect(() => {
+    // Trigger background processing once if contractText was handed off from UploadForm
+    const storageKey = `termshield_scan_text_${scanId}`;
+    let pendingText: string | null = null;
+    try {
+      pendingText = sessionStorage.getItem(storageKey);
+      if (pendingText) {
+        sessionStorage.removeItem(storageKey);
+      }
+    } catch {
+      // Ignore sessionStorage errors
+    }
+
+    if (pendingText) {
+      fetch("/api/scan/process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scanId, contractText: pendingText }),
+      })
+        .then(async (res) => {
+          if (!res.ok && res.status !== 409) {
+            const text = await res.text().catch(() => "");
+            console.error("Scan process failed:", res.status, text);
+          }
+          fetchScan();
+        })
+        .catch((err) => {
+          console.error("Failed to trigger scan process:", err);
+        });
+    }
+  }, [scanId, fetchScan]);
+
+  useEffect(() => {
     // Initial fetch
     fetchScan();
 

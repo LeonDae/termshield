@@ -146,7 +146,7 @@ export function UploadForm({ showFreePlan = false }: UploadFormProps) {
         });
       }
 
-      let payload: { message?: string; scan?: { id: string } };
+      let payload: { message?: string; scan?: { id: string }; contractText?: string };
       const responseText = await response.text();
       try {
         payload = JSON.parse(responseText);
@@ -160,6 +160,17 @@ export function UploadForm({ showFreePlan = false }: UploadFormProps) {
 
       if (!response.ok || !payload.scan?.id) {
         throw new Error(payload.message ?? "Unable to create the scan.");
+      }
+
+      if (payload.contractText) {
+        try {
+          sessionStorage.setItem(
+            `termshield_scan_text_${payload.scan.id}`,
+            payload.contractText
+          );
+        } catch {
+          // Ignore storage quota errors
+        }
       }
 
       startTransition(() => {
