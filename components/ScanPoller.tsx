@@ -75,11 +75,16 @@ export function ScanPoller({ scanId, initialScan }: ScanPollerProps) {
           if (!res.ok && res.status !== 409) {
             const text = await res.text().catch(() => "");
             console.error("Scan process failed:", res.status, text);
+            setError("Contract analysis timed out or failed on the server. Please try uploading again.");
+            setIsPolling(false);
+            return;
           }
           fetchScan();
         })
         .catch((err) => {
           console.error("Failed to trigger scan process:", err);
+          setError("Network error while starting contract analysis.");
+          setIsPolling(false);
         });
     }
   }, [scanId, fetchScan]);

@@ -27,7 +27,9 @@ import { analyzeClauseWithGemini, bulkAnalyzeClausesWithGemini } from "@/lib/gem
 import type { ClauseAnalysis } from "@/lib/schemas";
 
 // ── Constants ────────────────────────────────────────────────────────────────
-const RAG_TIMEOUT_MS = 25_000; // 25 seconds — leaves plenty of buffer within Vercel's 60s limit
+const RAG_TIMEOUT_MS = 20_000; // 20 seconds — leaves plenty of buffer within Vercel's 60s limit
+const LLM_TOTAL_BUDGET_MS = 35_000; // 35 seconds hard cap for all LLM calls
+const EMBEDDING_STORAGE_TIMEOUT_MS = 8_000; // 8 seconds max for optional embedding storage
 const GEMINI_CONCURRENCY = 2; // Max parallel Gemini API calls (conservative for free tier)
 const DEBUG = process.env.NODE_ENV !== "production";
 
@@ -72,6 +74,7 @@ interface PipelineResult {
 // ── Main pipeline function ───────────────────────────────────────────────────
 
 export async function runLLMPipeline(scanId: string, contractText: string) {
+  const pipelineStartTime = Date.now();
   try {
     const supabase = createSupabaseServerClient();
 
@@ -155,17 +158,30 @@ export async function runLLMPipeline(scanId: string, contractText: string) {
       const BULK_THRESHOLD = 4;
 
       if (clausesNeedingEmbedding.length > BULK_THRESHOLD) {
-        DEBUG && console.log(`[Pipeline] ${clausesNeedingEmbedding.length} clauses need analysis (> ${BULK_THRESHOLD}). Using bulk batched mode to conserve API quota...`);
+        DEBUG && console.log(`[Pipeline] ${clausesNeedingEmbedding.length} clauses need analysis (> ${BULK_THRESHOLD}). Using parallel bulk batched mode...`);
         usedBulkFallback = true;
 
-        // Process in batches of 20 clauses to stay within token limits
-        const BATCH_SIZE = 20;
+        // Process in batches of 25 clauses concurrently (up to 3 in parallel) within budget
+        const BATCH_SIZE = 25;
+        const batches: SegmentedClause[][] = [];
         for (let batchStart = 0; batchStart < clausesNeedingEmbedding.length; batchStart += BATCH_SIZE) {
-          const batch = clausesNeedingEmbedding.slice(batchStart, batchStart + BATCH_SIZE);
-          DEBUG && console.log(`[Pipeline] Bulk batch ${Math.floor(batchStart / BATCH_SIZE) + 1}: analyzing ${batch.length} clauses...`);
+          batches.push(clausesNeedingEmbedding.slice(batchStart, batchStart + BATCH_SIZE));
+        }
+
+        const batchTasks = batches.map((batch, batchIdx) => async () => {
+          if (Date.now() - pipelineStartTime > LLM_TOTAL_BUDGET_MS) {
+            console.warn(`[Pipeline] Skipping bulk batch ${batchIdx + 1} due to ${LLM_TOTAL_BUDGET_MS}ms budget.`);
+            return;
+          }
+          DEBUG && console.log(`[Pipeline] Bulk batch ${batchIdx + 1}/${batches.length}: analyzing ${batch.length} clauses...`);
 
           try {
-            const bulkResults = await bulkAnalyzeClausesWithGemini(batch);
+            const bulkResults = await Promise.race([
+              bulkAnalyzeClausesWithGemini(batch),
+              new Promise<Map<number, ClauseAnalysis>>((resolve) =>
+                setTimeout(() => resolve(new Map()), LLM_TOTAL_BUDGET_MS)
+              ),
+            ]);
             geminiCallCount++;
 
             for (const clause of batch) {
@@ -195,8 +211,7 @@ export async function runLLMPipeline(scanId: string, contractText: string) {
               }
             }
           } catch (batchErr) {
-            console.error(`[Pipeline] Bulk batch failed:`, batchErr);
-            // Fallback: mark these clauses as needing manual review
+            console.error(`[Pipeline] Bulk batch ${batchIdx + 1} failed:`, batchErr);
             for (const clause of batch) {
               results.push({
                 riskType: "liability",
@@ -214,7 +229,12 @@ export async function runLLMPipeline(scanId: string, contractText: string) {
               });
             }
           }
-        }
+        });
+
+        await Promise.race([
+          runWithConcurrency(batchTasks, 3),
+          new Promise<void>((resolve) => setTimeout(resolve, LLM_TOTAL_BUDGET_MS)),
+        ]);
       } else {
         // Small number of clauses — use the full RAG path (individual analysis)
         try {
@@ -310,26 +330,37 @@ export async function runLLMPipeline(scanId: string, contractText: string) {
     DEBUG && console.log(`[Pipeline] ${scanId} Savings: ${geminiCallCount} Gemini API calls made${method} (vs ${clauses.length} total clauses = ${savingsPercent}% savings)`);
 
     // ── Step 5: Store clause embeddings in pgvector and collect IDs ──
-    // Note: Embeddings are generated inside runRAGPath. If the RAG path timed out
-    // or we used bulk fallback, we regenerate embeddings for storage (fire-and-forget).
+    // Only run if we still have plenty of serverless time budget remaining.
     let clauseTextToIdMap = new Map<string, string>();
-    if (clausesNeedingEmbedding.length > 0) {
+    const elapsedMs = Date.now() - pipelineStartTime;
+    if (clausesNeedingEmbedding.length > 0 && elapsedMs < 42_000) {
       try {
-        // Re-generate embeddings for storage (they're cached so this is fast)
-        const textsToEmbed = clausesNeedingEmbedding.map((c) => c.clauseText);
-        const storageEmbeddings = await getEmbeddings(textsToEmbed);
-        if (storageEmbeddings.some((e: number[]) => e && e.length === 768)) {
-          const riskLabels = clausesNeedingEmbedding.map((clause) => {
-            const result = results.find((r) => r.clauseText === clause.clauseText);
-            return result?.riskType ?? null;
-          });
-          DEBUG && console.log(`[Pipeline] Storing ${clausesNeedingEmbedding.length} clause embeddings in Supabase...`);
-          clauseTextToIdMap = await storeClauseEmbeddings(scanId, documentHash, clausesNeedingEmbedding, storageEmbeddings, riskLabels);
-          DEBUG && console.log(`[Pipeline] Successfully saved clause embeddings. IDs mapped: ${clauseTextToIdMap.size}`);
-        }
+        await Promise.race([
+          (async () => {
+            const textsToEmbed = clausesNeedingEmbedding.map((c) => c.clauseText);
+            const storageEmbeddings = await getEmbeddings(textsToEmbed);
+            if (storageEmbeddings.some((e: number[]) => e && e.length === 768)) {
+              const riskLabels = clausesNeedingEmbedding.map((clause) => {
+                const result = results.find((r) => r.clauseText === clause.clauseText);
+                return result?.riskType ?? null;
+              });
+              DEBUG && console.log(`[Pipeline] Storing ${clausesNeedingEmbedding.length} clause embeddings in Supabase...`);
+              clauseTextToIdMap = await storeClauseEmbeddings(scanId, documentHash, clausesNeedingEmbedding, storageEmbeddings, riskLabels);
+              DEBUG && console.log(`[Pipeline] Successfully saved clause embeddings. IDs mapped: ${clauseTextToIdMap.size}`);
+            }
+          })(),
+          new Promise<void>((resolve) =>
+            setTimeout(() => {
+              console.warn(`[Pipeline] ${scanId}: Embedding storage timed out after ${EMBEDDING_STORAGE_TIMEOUT_MS}ms, continuing to save risks.`);
+              resolve();
+            }, EMBEDDING_STORAGE_TIMEOUT_MS)
+          ),
+        ]);
       } catch (error) {
         console.error(`[Pipeline] ${scanId}: Failed to store clause embeddings:`, error);
       }
+    } else if (clausesNeedingEmbedding.length > 0) {
+      console.warn(`[Pipeline] ${scanId}: Skipping embedding storage (${elapsedMs}ms elapsed) to ensure scan completes within timeout.`);
     }
 
     // ── Step 6: Collect ALL clause results (including safe) for display ──

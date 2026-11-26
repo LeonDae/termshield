@@ -4,6 +4,8 @@ import { demoScan } from "@/lib/demo-scan";
 import { getScanRecordById, getScanSetupMessage } from "@/lib/scans";
 import { hasSupabaseServerConfig } from "@/lib/supabase";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(
   _request: Request,
   { params }: { params: { id: string } },
@@ -37,7 +39,10 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ scan });
+    return NextResponse.json(
+      { scan },
+      { headers: { "Cache-Control": "no-store, max-age=0" } },
+    );
   } catch (error) {
     return NextResponse.json(
       {
